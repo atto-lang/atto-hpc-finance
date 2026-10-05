@@ -13,6 +13,7 @@ The library intentionally targets Oreslang's active next language/runtime surfac
 | Regent-style mapper/variants | PR #222 | scalar/CPU-SIMD/GPU variants share one logical kernel contract |
 | Ores-owned await/continuations | PR #167/#182/#192/#193/#232 | asynchronous compute/device completion releases actor carriers |
 | native Oreslang tests | PR #233 | future replacement for the bootstrap smoke program |
+| transferable region ownership + async actor compute | runtime issue #236 | required to safely connect actor mailboxes to `Region<T>` CPU/GPU tasks |
 
 ## Compatibility policy
 
