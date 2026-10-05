@@ -33,38 +33,18 @@ define module finance_scalar
     };
   }
 
-  fnc validate_input_count(Array<float> values, int count) -> Result<int, KernelError> {
-    if count < 0 {
-      return Err(kernel_error("invalid_count", -1, 0, count));
-    }
-
-    val actual = count_float(values);
-    if actual != count {
-      return Err(kernel_error("input_length", -1, count, actual));
-    }
-
-    return Ok(actual);
-  }
-
-  fnc validate_finite(Array<float> values, int count) -> Result<int, KernelError> {
-    for int i = 0; i < count; i++ {
-      if !is_finite_value(values[i]) {
-        return Err(kernel_error("non_finite", i, 0, 0));
-      }
-    }
-    return Ok(count);
-  }
-
   pub fnc simple_returns_into(
     Array<float> prices,
     Array<float> mut out,
     int count
   ) -> Result<int, KernelError> {
-    val input_shape = validate_input_count(prices, count);
-    if input_shape.is_err() {
-      return Err(input_shape.unwrap_safe().unwrap_or(
-        kernel_error("input_length", -1, count, count_float(prices))
-      ));
+    if count < 0 {
+      return Err(kernel_error("invalid_count", -1, 0, count));
+    }
+
+    val actual_prices = count_float(prices);
+    if actual_prices != count {
+      return Err(kernel_error("input_length", -1, count, actual_prices));
     }
 
     val expected = count == 0 ? 0 : count - 1;
@@ -73,13 +53,10 @@ define module finance_scalar
       return Err(kernel_error("output_length", -1, expected, actual_out));
     }
 
-    val finite = validate_finite(prices, count);
-    if finite.is_err() {
-      // Result error projection/matching will replace this temporary unwrap
-      // bridge once the monadic/core matching branch is folded in.
-      return Err(finite.unwrap_safe().unwrap_or(
-        kernel_error("non_finite", -1, 0, 0)
-      ));
+    for int i = 0; i < count; i++ {
+      if !is_finite_value(prices[i]) {
+        return Err(kernel_error("non_finite", i, 0, 0));
+      }
     }
 
     for int i = 1; i < count; i++ {
@@ -104,9 +81,13 @@ define module finance_scalar
     int count,
     int window
   ) -> Result<int, KernelError> {
-    val input_shape = validate_input_count(values, count);
-    if input_shape.is_err() {
-      return Err(kernel_error("input_length", -1, count, count_float(values)));
+    if count < 0 {
+      return Err(kernel_error("invalid_count", -1, 0, count));
+    }
+
+    val actual_values = count_float(values);
+    if actual_values != count {
+      return Err(kernel_error("input_length", -1, count, actual_values));
     }
 
     if window <= 0 || window > count {
@@ -119,12 +100,9 @@ define module finance_scalar
       return Err(kernel_error("output_length", -1, expected, actual_out));
     }
 
-    val finite = validate_finite(values, count);
-    if finite.is_err() {
-      for int i = 0; i < count; i++ {
-        if !is_finite_value(values[i]) {
-          return Err(kernel_error("non_finite", i, 0, 0));
-        }
+    for int i = 0; i < count; i++ {
+      if !is_finite_value(values[i]) {
+        return Err(kernel_error("non_finite", i, 0, 0));
       }
     }
 
@@ -143,21 +121,22 @@ define module finance_scalar
   }
 
   pub fnc mean(Array<float> values, int count) -> Result<float, KernelError> {
-    val input_shape = validate_input_count(values, count);
-    if input_shape.is_err() {
-      return Err(kernel_error("input_length", -1, count, count_float(values)));
+    if count < 0 {
+      return Err(kernel_error("invalid_count", -1, 0, count));
+    }
+
+    val actual_values = count_float(values);
+    if actual_values != count {
+      return Err(kernel_error("input_length", -1, count, actual_values));
     }
 
     if count < 1 {
       return Err(kernel_error("insufficient_samples", -1, 1, count));
     }
 
-    val finite = validate_finite(values, count);
-    if finite.is_err() {
-      for int i = 0; i < count; i++ {
-        if !is_finite_value(values[i]) {
-          return Err(kernel_error("non_finite", i, 0, 0));
-        }
+    for int i = 0; i < count; i++ {
+      if !is_finite_value(values[i]) {
+        return Err(kernel_error("non_finite", i, 0, 0));
       }
     }
 
@@ -173,21 +152,22 @@ define module finance_scalar
     Array<float> values,
     int count
   ) -> Result<float, KernelError> {
-    val input_shape = validate_input_count(values, count);
-    if input_shape.is_err() {
-      return Err(kernel_error("input_length", -1, count, count_float(values)));
+    if count < 0 {
+      return Err(kernel_error("invalid_count", -1, 0, count));
+    }
+
+    val actual_values = count_float(values);
+    if actual_values != count {
+      return Err(kernel_error("input_length", -1, count, actual_values));
     }
 
     if count < 2 {
       return Err(kernel_error("insufficient_samples", -1, 2, count));
     }
 
-    val finite = validate_finite(values, count);
-    if finite.is_err() {
-      for int i = 0; i < count; i++ {
-        if !is_finite_value(values[i]) {
-          return Err(kernel_error("non_finite", i, 0, 0));
-        }
+    for int i = 0; i < count; i++ {
+      if !is_finite_value(values[i]) {
+        return Err(kernel_error("non_finite", i, 0, 0));
       }
     }
 
@@ -210,9 +190,13 @@ define module finance_scalar
     Array<float> prices,
     int count
   ) -> Result<Option<Drawdown>, KernelError> {
-    val input_shape = validate_input_count(prices, count);
-    if input_shape.is_err() {
-      return Err(kernel_error("input_length", -1, count, count_float(prices)));
+    if count < 0 {
+      return Err(kernel_error("invalid_count", -1, 0, count));
+    }
+
+    val actual_prices = count_float(prices);
+    if actual_prices != count {
+      return Err(kernel_error("input_length", -1, count, actual_prices));
     }
 
     if count == 0 {
