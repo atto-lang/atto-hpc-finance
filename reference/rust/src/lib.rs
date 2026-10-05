@@ -10,6 +10,7 @@ pub enum KernelError {
     InvalidWindow { window: usize, len: usize },
     NonFinite { index: usize },
     NonPositivePrice { index: usize },
+    NegativePrice { index: usize },
     ZeroPreviousPrice { index: usize },
     InsufficientSamples { required: usize, actual: usize },
     InvalidAnnualization,
@@ -241,7 +242,7 @@ pub fn max_drawdown(prices: &[f64]) -> Result<Option<Drawdown>, KernelError> {
 
     for (index, price) in prices.iter().copied().enumerate() {
         if price < 0.0 {
-            return Err(KernelError::NonPositivePrice { index });
+            return Err(KernelError::NegativePrice { index });
         }
     }
 
@@ -347,6 +348,64 @@ mod tests {
     fn sharpe_zero_volatility_has_no_finite_value() {
         let returns = [0.01, 0.01, 0.01];
         assert_eq!(sharpe_ratio(&returns, 0.0, 252.0).unwrap(), None);
+    }
+
+    #[test]
+    fn rejects_column_length_mismatch() {
+        let bars = BarColumns {
+            ts_ns: &[1, 2],
+            open: &[10.0],
+            high: &[12.0, 13.0],
+            low: &[9.0, 10.0],
+            close: &[11.0, 12.0],
+            volume: &[100.0, 120.0],
+        };
+        assert_eq!(
+            bars.validate_lengths(),
+            Err(KernelError::ColumnLength {
+                column: "open",
+                expected: 2,
+                actual: 1,
+            })
+        );
+    }
+
+    #[test]
+    fn simple_returns_reject_zero_previous_price() {
+        let prices = [0.0, 1.0];
+        let mut out = [0.0; 1];
+        assert_eq!(
+            simple_returns_into(&prices, &mut out),
+            Err(KernelError::ZeroPreviousPrice { index: 0 })
+        );
+    }
+
+    #[test]
+    fn rolling_mean_rejects_invalid_window() {
+        let values = [1.0, 2.0];
+        let mut out = [0.0; 1];
+        assert_eq!(
+            rolling_mean_into(&values, 0, &mut out),
+            Err(KernelError::InvalidWindow { window: 0, len: 2 })
+        );
+    }
+
+    #[test]
+    fn kernels_reject_non_finite_inputs() {
+        let values = [1.0, f64::NAN];
+        assert_eq!(
+            mean(&values),
+            Err(KernelError::NonFinite { index: 1 })
+        );
+    }
+
+    #[test]
+    fn max_drawdown_rejects_negative_prices() {
+        let prices = [1.0, -0.5];
+        assert_eq!(
+            max_drawdown(&prices),
+            Err(KernelError::NegativePrice { index: 1 })
+        );
     }
 
     #[test]
