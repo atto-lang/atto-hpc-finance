@@ -8,7 +8,8 @@
 - [x] Add `.oreslangc.cfg.toml` project metadata.
 - [x] Add first Oreslang scalar oracle-compatible kernels (simple returns, rolling mean, mean, variance, drawdown).
 - [ ] Add log returns and Sharpe once pure numeric `log`/`sqrt` intrinsics are executable outside compute-only analysis.
-- [ ] Add cross-language golden fixtures.
+- [x] Add cross-language golden fixture data.
+- [ ] Wire Rust/Oreslang differential runners to the shared fixtures.
 
 ## Phase 1 — market/statistics foundation
 
