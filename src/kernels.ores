@@ -1,0 +1,136 @@
+import types (Bar, ReturnPoint, RollingMeanPoint, MomentState) from "./model.ores";
+
+// Data-oriented accelerated layer.
+//
+// Preconditions (finite values, lengths, nonzero previous prices, valid window)
+// are checked by the scalar/control plane before launching these kernels.
+// Keeping validation out of the hot loop lets the same logical contract map to
+// CPU chunks, SIMD, or a future GPU variant without changing finance semantics.
+
+pub compute fnc simple_returns_kernel(
+  Region<Bar> bars,
+  Region<ReturnPoint> out,
+  int count
+) -> void
+reads bars.close;
+discards out.value;
+layout bars soa;
+layout out soa;
+place auto;
+{
+  parallel simd for int i = 1; i < count; i++ {
+    out[i - 1].value = bars[i].close / bars[i - 1].close - 1.0;
+  }
+  return;
+}
+
+pub compute fnc rolling_mean_kernel(
+  Region<ReturnPoint> values,
+  Region<RollingMeanPoint> out,
+  int output_count,
+  int window
+) -> void
+reads values.value;
+discards out.value;
+layout values soa;
+layout out soa;
+place auto;
+{
+  parallel simd for int start = 0; start < output_count; start++ {
+    let sum = 0.0;
+    for int offset = 0; offset < window; offset++ {
+      sum = sum + values[start + offset].value;
+    }
+    out[start].value = sum / window;
+  }
+  return;
+}
+
+// First stage of deterministic variance reduction.
+//
+// Each chunk owns one MomentState output slot, so chunks can run independently.
+// The inner loop uses the fixed chunk_size parameter as its bound; the final
+// chunk masks elements whose computed index is outside count.
+pub compute fnc welford_chunk_kernel(
+  Region<ReturnPoint> values,
+  Region<MomentState> chunks,
+  int count,
+  int chunk_size,
+  int chunk_count
+) -> void
+reads values.value;
+discards chunks.count, chunks.mean, chunks.m2;
+layout values soa;
+layout chunks soa;
+place auto;
+{
+  parallel for int chunk = 0; chunk < chunk_count; chunk++ {
+    let local_count = 0;
+    let local_mean = 0.0;
+    let local_m2 = 0.0;
+
+    for int offset = 0; offset < chunk_size; offset++ {
+      val index = chunk * chunk_size + offset;
+      if index < count {
+        local_count = local_count + 1;
+        val value = values[index].value;
+        val delta = value - local_mean;
+        local_mean = local_mean + delta / local_count;
+        val delta2 = value - local_mean;
+        local_m2 = local_m2 + delta * delta2;
+      }
+    }
+
+    chunks[chunk].count = local_count;
+    chunks[chunk].mean = local_mean;
+    chunks[chunk].m2 = local_m2;
+  }
+  return;
+}
+
+// Deterministic merge stage for per-chunk Welford states.
+//
+// This stays on CPU and merges chunks in increasing chunk index. A future
+// backend may provide a fixed-tree reduction variant, but it must advertise
+// different reproducibility guarantees rather than silently changing order.
+pub compute fnc combine_moments_kernel(
+  Region<MomentState> chunks,
+  Region<MomentState> total,
+  int chunk_count
+) -> void
+reads chunks.count, chunks.mean, chunks.m2;
+discards total.count, total.mean, total.m2;
+layout chunks soa;
+layout total soa;
+place cpu;
+{
+  let total_count = 0;
+  let total_mean = 0.0;
+  let total_m2 = 0.0;
+
+  for int i = 0; i < chunk_count; i++ {
+    val right_count = chunks[i].count;
+
+    if right_count > 0 {
+      if total_count == 0 {
+        total_count = right_count;
+        total_mean = chunks[i].mean;
+        total_m2 = chunks[i].m2;
+      } else {
+        val next_count = total_count + right_count;
+        val delta = chunks[i].mean - total_mean;
+
+        total_m2 = total_m2
+          + chunks[i].m2
+          + delta * delta * total_count * right_count / next_count;
+        total_mean = total_mean + delta * right_count / next_count;
+        total_count = next_count;
+      }
+    }
+  }
+
+  total[0].count = total_count;
+  total[0].mean = total_mean;
+  total[0].m2 = total_m2;
+  return;
+}
