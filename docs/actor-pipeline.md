@@ -23,18 +23,29 @@ venue capability / simulator (application integration)
 
 ## Ownership
 
-The pipeline uses one `ValidatedFinanceWorkBatch` ownership envelope containing
-preallocated logical regions. The producer must validate dimensions and
-finance-domain input constraints before mailbox admission.
+The desired pipeline uses one uniquely owned work envelope containing
+preallocated logical regions. However, **raw writable `Region<T>` is not an
+actor message type today, and it should not become one by simple
+whitelisting**.
 
-Each actor:
+The hardened actor checker deliberately fails closed for opaque nominal
+capabilities. That is the correct behavior: a region may represent mutable,
+NUMA-local, accelerator-resident, or otherwise runtime-managed storage, so
+copying a raw region handle through a mailbox could manufacture writable aliases
+or leak device authority.
 
-1. owns the message for its mailbox turn;
-2. invokes only the compute kernels for its stage;
-3. never exposes its own mutable actor state to a kernel;
-4. transfers the work envelope with `rt take` when calling
-   `ActorRef.send`;
-5. does not retain a writable alias after transfer.
+Oreslang runtime issue #236 therefore tracks an explicit owned transfer
+capability (exact source name still to be chosen). Its required semantics are:
+
+1. transfer requires unique ownership and behaves like an `rt take`;
+2. the sender loses writable authority after successful mailbox admission;
+3. live borrows/aliases make transfer fail at compile time;
+4. the receiver becomes the unique writable owner;
+5. read-only sharing, if supported, uses an explicit frozen/versioned view;
+6. raw native addresses and device handles never become guest-visible.
+
+`design/pipeline.ores` shows the desired stage topology but is intentionally
+outside `.oreslangc.cfg.toml` source roots until that capability exists.
 
 This is intentionally different from sharing a mutable "market context" object
 between actors.
@@ -43,7 +54,7 @@ between actors.
 
 The current Oreslang reference interpreter in the active data-oriented compute
 PR executes a direct `compute fnc` call synchronously. Therefore
-`src/pipeline.ores` is the **semantic/reference pipeline**, not a claim that a
+`design/pipeline.ores` is a **design target**, not a claim that a
 large GPU launch already releases the actor carrier.
 
 The production lowering must preserve the same source-level kernel contract but
@@ -60,8 +71,9 @@ actor turn
 
 No callback may resume actor code inline.
 
-Until that compute-submission API is present upstream, the library will not
-invent a fake `compute.submit` API or hide blocking behind Java interop.
+Until that compute-submission API and unique region-transfer capability are
+present upstream, the library will not invent a fake `compute.submit` API,
+make raw `Region<T>` mailbox-sendable, or hide blocking behind Java interop.
 
 ## CPU path
 
