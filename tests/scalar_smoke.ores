@@ -1,0 +1,41 @@
+import module finance_scalar from "../src/scalar.ores";
+
+// Bootstrap executable smoke fixture.
+// Expected output after the required upstream Oreslang feature branches are
+// integrated: true:true:true:true
+
+pub routine main() -> void {
+  val Array<float> prices = arr[100.0, 110.0, 99.0];
+  let Array<float> returns = arr[0.0, 0.0];
+
+  val returns_result = finance_scalar.simple_returns_into(
+    prices,
+    returns,
+    3
+  );
+
+  let Array<float> rolling = arr[0.0, 0.0];
+  val rolling_result = finance_scalar.rolling_mean_into(
+    arr[1.0, 2.0, 3.0],
+    rolling,
+    3,
+    2
+  );
+
+  val variance_result = finance_scalar.sample_variance(
+    arr[1.0, 2.0, 3.0],
+    3
+  );
+
+  stdio.stdout.write(returns_result.is_ok());
+  stdio.stdout.write(":");
+  stdio.stdout.write(returns[0] > 0.099 && returns[0] < 0.101);
+  stdio.stdout.write(":");
+  stdio.stdout.write(rolling_result.is_ok() && rolling[1] == 2.5);
+  stdio.stdout.write(":");
+  stdio.stdout.write(
+    variance_result.is_ok()
+      && variance_result.unwrap() == 1.0
+  );
+  return;
+}
