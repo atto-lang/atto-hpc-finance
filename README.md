@@ -38,12 +38,22 @@ An actor should normally hand a dense batch or bounded view to a pure kernel ins
 
 ## Bootstrap status
 
-The first feature branch establishes architecture and a dependency-free Rust reference oracle for core kernels. The Rust crate is **not** the public Oreslang API; it exists to pin numerical semantics and provide a portable test/benchmark oracle while the Oreslang package surface is built out.
+The draft implementation now contains both a dependency-free Rust correctness oracle and the first Oreslang implementation tranche.
+
+- `src/model.ores` — closed/AOT-safe finance data shapes.
+- `src/scalar.ores` — validated scalar Oreslang kernels for simple returns, rolling mean, mean, sample variance, and maximum drawdown.
+- `src/kernels.ores` — `Region<T>` data-oriented kernels with explicit effects, SoA layout, automatic placement, SIMD/parallel loops, chunked Welford statistics, signal generation, order intent, and risk gating.
+- `src/pipeline.ores` — single-ingress actor chain from market data through strategy/risk to the execution boundary using an owned work envelope.
+- `tests/scalar_smoke.ores` — executable smoke fixture for the integrated upstream language surface.
+- `reference/rust/` — scalar parity/correctness oracle; it is not the public implementation.
+
+The Oreslang source deliberately targets active compiler/runtime contracts that are still split across upstream draft PRs. `docs/upstream-feature-matrix.md` records those dependencies. In particular, direct `compute fnc` calls still execute synchronously in the current reference interpreter; the production CPU/GPU submission boundary must return an awaitable and release the actor execution lease.
 
 See:
 
 - `docs/architecture.md`
+- `docs/actor-pipeline.md`
 - `docs/oreslang-api.md`
 - `docs/numerical-contracts.md`
+- `docs/upstream-feature-matrix.md`
 - `docs/roadmap.md`
-- `reference/rust/`
