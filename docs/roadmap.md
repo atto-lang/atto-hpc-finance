@@ -5,15 +5,18 @@
 - [x] Repository architecture.
 - [x] Numerical semantics document.
 - [x] Dependency-free Rust reference oracle.
-- [ ] Wire Oreslang package/build metadata once the package manifest convention is selected.
-- [ ] Add Oreslang scalar kernels matching the oracle.
+- [x] Add `.oreslangc.cfg.toml` project metadata.
+- [x] Add first Oreslang scalar oracle-compatible kernels (simple returns, rolling mean, mean, variance, drawdown).
+- [ ] Add log returns and Sharpe once pure numeric `log`/`sqrt` intrinsics are executable outside compute-only analysis.
 - [ ] Add cross-language golden fixtures.
 
 ## Phase 1 — market/statistics foundation
 
-- [ ] Columnar quote/trade/bar batches.
+- [x] Add closed `Bar` model plus `Region<Bar>` SoA compute contract.
+- [ ] Add concrete quote/trade batches and ingestion normalization.
 - [ ] Ring/segmented buffers with bounded immutable views.
-- [ ] Simple/log returns.
+- [x] Simple-return scalar + Region kernel.
+- [ ] Log-return scalar + Region kernel.
 - [ ] SMA/EMA/VWAP.
 - [ ] Rolling variance/stddev.
 - [ ] Covariance/correlation matrices.
@@ -22,10 +25,11 @@
 
 ## Phase 2 — actor trading pipeline
 
-- [ ] `MarketDataActor` ingestion contract.
-- [ ] `StrategyActor` state/lifecycle contract.
-- [ ] `RiskActor` pre/post-trade checks.
-- [ ] `ExecutionActor` order routing.
+- [x] `MarketDataActor` compute/orchestration contract.
+- [x] `StrategyActor` signal/order-intent contract.
+- [x] `RiskActor` pre-trade risk-gate contract.
+- [x] `ExecutionActor` terminal ownership boundary.
+- [ ] Venue/simulator order-routing capability behind `ExecutionActor`.
 - [ ] Deterministic simulation clock.
 - [ ] Ordered event journal + replay.
 - [ ] Backtest fill/latency models.
@@ -51,10 +55,12 @@
 
 ## Phase 5 — heterogeneous HPC
 
-- [ ] Kernel descriptors with explicit read/write sets.
-- [ ] Chunked CPU task execution.
-- [ ] SIMD implementations.
-- [ ] GPU backend(s).
+- [x] Kernel descriptors with explicit read/write/discard sets.
+- [x] Chunked Welford algorithm + deterministic CPU merge contract.
+- [ ] Runtime chunk-task executor.
+- [x] Parallel/SIMD loop contracts on independent finance kernels.
+- [ ] Concrete SIMD backend variants.
+- [ ] GPU backend variant(s) and asynchronous submission boundary.
 - [ ] Transfer planner / device-resident batches.
 - [ ] Differential correctness suite against scalar oracle.
 - [ ] Roofline/cache/bandwidth benchmarks.
