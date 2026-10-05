@@ -1,19 +1,6 @@
 // Closed, AOT-safe finance data shapes.
 // This file targets the static-struct model in oreslang-source.java PR #176.
 
-struct KernelError {
-  code: string
-  index: int
-  expected: int
-  actual: int
-}
-
-struct Drawdown {
-  peak_index: int
-  trough_index: int
-  fraction: float
-}
-
 struct Bar {
   ts_ns: int
   open: float
