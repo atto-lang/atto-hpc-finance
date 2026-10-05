@@ -43,6 +43,7 @@ The first feature branch establishes architecture and a dependency-free Rust ref
 See:
 
 - `docs/architecture.md`
+- `docs/oreslang-api.md`
 - `docs/numerical-contracts.md`
 - `docs/roadmap.md`
 - `reference/rust/`
