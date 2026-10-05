@@ -1,0 +1,230 @@
+import * as model from "./model.ores";
+
+// Data-oriented accelerated layer.
+//
+// Preconditions (finite values, lengths, nonzero previous prices, valid window)
+// are checked by the scalar/control plane before launching these kernels.
+// Keeping validation out of the hot loop lets the same logical contract map to
+// CPU chunks, SIMD, or a future GPU variant without changing finance semantics.
+
+pub compute fnc simple_returns_kernel(
+  Region<model.Bar> bars,
+  Region<model.ReturnPoint> out,
+  int count
+) -> void
+reads bars.close;
+discards out.value;
+layout bars soa;
+layout out soa;
+place auto;
+{
+  parallel simd for int i = 1; i < count; i++ {
+    out[i - 1].value = bars[i].close / bars[i - 1].close - 1.0;
+  }
+  return;
+}
+
+pub compute fnc rolling_mean_kernel(
+  Region<model.ReturnPoint> values,
+  Region<model.RollingMeanPoint> out,
+  int output_count,
+  int window
+) -> void
+reads values.value;
+discards out.value;
+layout values soa;
+layout out soa;
+place auto;
+{
+  parallel simd for int start = 0; start < output_count; start++ {
+    let sum = 0.0;
+    for int offset = 0; offset < window; offset++ {
+      sum = sum + values[start + offset].value;
+    }
+    out[start].value = sum / window;
+  }
+  return;
+}
+
+// First stage of deterministic variance reduction.
+//
+// Each chunk owns one MomentState output slot, so chunks can run independently.
+// The inner loop uses the fixed chunk_size parameter as its bound; the final
+// chunk masks elements whose computed index is outside count.
+pub compute fnc welford_chunk_kernel(
+  Region<model.ReturnPoint> values,
+  Region<model.MomentState> chunks,
+  int count,
+  int chunk_size,
+  int chunk_count
+) -> void
+reads values.value;
+discards chunks.count, chunks.mean, chunks.m2;
+layout values soa;
+layout chunks soa;
+place auto;
+{
+  parallel for int chunk = 0; chunk < chunk_count; chunk++ {
+    let local_count = 0;
+    let local_mean = 0.0;
+    let local_m2 = 0.0;
+
+    for int offset = 0; offset < chunk_size; offset++ {
+      val index = chunk * chunk_size + offset;
+      if index < count {
+        local_count = local_count + 1;
+        val value = values[index].value;
+        val delta = value - local_mean;
+        local_mean = local_mean + delta / local_count;
+        val delta2 = value - local_mean;
+        local_m2 = local_m2 + delta * delta2;
+      }
+    }
+
+    chunks[chunk].count = local_count;
+    chunks[chunk].mean = local_mean;
+    chunks[chunk].m2 = local_m2;
+  }
+  return;
+}
+
+// Deterministic merge stage for per-chunk Welford states.
+//
+// This stays on CPU and merges chunks in increasing chunk index. A future
+// backend may provide a fixed-tree reduction variant, but it must advertise
+// different reproducibility guarantees rather than silently changing order.
+pub compute fnc combine_moments_kernel(
+  Region<model.MomentState> chunks,
+  Region<model.MomentState> total,
+  int chunk_count
+) -> void
+reads chunks.count, chunks.mean, chunks.m2;
+discards total.count, total.mean, total.m2;
+layout chunks soa;
+layout total soa;
+place cpu;
+{
+  let total_count = 0;
+  let total_mean = 0.0;
+  let total_m2 = 0.0;
+
+  for int i = 0; i < chunk_count; i++ {
+    val right_count = chunks[i].count;
+
+    if right_count > 0 {
+      if total_count == 0 {
+        total_count = right_count;
+        total_mean = chunks[i].mean;
+        total_m2 = chunks[i].m2;
+      } else {
+        val next_count = total_count + right_count;
+        val delta = chunks[i].mean - total_mean;
+
+        total_m2 = total_m2
+          + chunks[i].m2
+          + delta * delta * total_count * right_count / next_count;
+        total_mean = total_mean + delta * right_count / next_count;
+        total_count = next_count;
+      }
+    }
+  }
+
+  total[0].count = total_count;
+  total[0].mean = total_mean;
+  total[0].m2 = total_m2;
+  return;
+}
+
+
+// Strategy/risk kernels keep actor code out of dense numerical state.
+// These operate on one-slot output regions so the orchestration layer can reuse
+// a preallocated work envelope without allocating inside a compute function.
+
+pub compute fnc latest_signal_kernel(
+  Region<model.ReturnPoint> returns,
+  Region<model.RollingMeanPoint> rolling,
+  Region<model.SignalPoint> signal,
+  int return_count,
+  int rolling_count
+) -> void
+reads returns.value, rolling.value;
+discards signal.score, signal.side;
+layout returns soa;
+layout rolling soa;
+layout signal soa;
+place auto;
+{
+  val score = returns[return_count - 1].value
+    - rolling[rolling_count - 1].value;
+
+  let side = 0;
+  if score > 0.0 {
+    side = 1;
+  } elseif score < 0.0 {
+    side = -1;
+  }
+
+  signal[0].score = score;
+  signal[0].side = side;
+  return;
+}
+
+pub compute fnc order_intent_kernel(
+  Region<model.SignalPoint> signal,
+  Region<model.OrderIntent> order,
+  int instrument_id,
+  float quantity,
+  float limit_price
+) -> void
+reads signal.side;
+discards order.instrument_id, order.side, order.quantity, order.limit_price;
+layout signal soa;
+layout order soa;
+place cpu;
+{
+  val side = signal[0].side;
+
+  order[0].instrument_id = instrument_id;
+  order[0].side = side;
+  order[0].quantity = side == 0 ? 0.0 : quantity;
+  order[0].limit_price = limit_price;
+  return;
+}
+
+pub compute fnc risk_gate_kernel(
+  Region<model.OrderIntent> order,
+  Region<model.RiskDecisionPoint> decision,
+  float max_quantity
+) -> void
+reads order.side, order.quantity;
+discards decision.approved, decision.reason_code;
+layout order soa;
+layout decision soa;
+place cpu;
+{
+  let approved = true;
+  let reason_code = 0;
+
+  val quantity_finite =
+    (order[0].quantity - order[0].quantity) == 0.0;
+  val max_quantity_finite =
+    (max_quantity - max_quantity) == 0.0;
+
+  if !quantity_finite || !max_quantity_finite || max_quantity < 0.0 {
+    approved = false;
+    reason_code = 4;
+  } elseif order[0].side == 0 {
+    approved = false;
+    reason_code = 1;
+  } elseif order[0].quantity < 0.0 {
+    approved = false;
+    reason_code = 2;
+  } elseif order[0].quantity > max_quantity {
+    approved = false;
+    reason_code = 3;
+  }
+
+  decision[0].approved = approved;
+  decision[0].reason_code = reason_code;
+  return;
+}

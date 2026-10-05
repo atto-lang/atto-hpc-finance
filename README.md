@@ -4,14 +4,58 @@ High-performance finance, trading, quantitative research, and HPC routines for O
 
 This repository is intentionally **outside Oreslang core**. It is the proving ground for data-oriented kernels, actor-driven streaming pipelines, deterministic numerical routines, and future SIMD/GPU backends without coupling finance-domain APIs to the language/runtime.
 
-## Design direction
+## Architectural rule
 
-- **Data-oriented first:** dense columnar / struct-of-arrays representations for hot market-data and portfolio paths.
-- **Pure kernels first:** pricing, returns, rolling statistics, indicators, and risk calculations are deterministic functions over explicit buffers.
-- **Actors at boundaries:** actors own feeds, clocks, order routing, orchestration, and mutable strategy/session state; compute kernels remain batchable and parallelizable.
-- **Placement-ready:** kernels describe read/write data sets so Oreslang can later map independent work to CPU workers or GPU accelerators.
-- **Reproducible finance:** explicit clocks, deterministic seeds, stable event ordering, and no hidden global state.
-- **Zero-copy where safe:** pass bounded slices/views into kernels instead of materializing object graphs.
-- **Core stays small:** reusable HPC primitives may eventually inform generic external libraries, but finance-specific code does not enter the language core.
+Use **actors for ownership, orchestration, I/O, clocks, feeds, order routing, supervision, and stateful strategy lifecycles**. Use **data-oriented kernels for dense numerical work**.
 
-The initial implementation is being bootstrapped on a feature branch after this repository-initialization commit.
+An actor should normally hand a dense batch or bounded view to a pure kernel instead of representing every quote, bar, position, or path as an object with behavior. That keeps the scheduler responsive while giving the compiler/runtime a clean target for vectorization, parallel execution, and eventual CPU/GPU placement.
+
+## Initial module map
+
+- `market_data` — columnar quote/trade/bar batches and normalization.
+- `returns` — simple/log returns and transforms.
+- `stats` — reductions, rolling/windowed statistics, covariance/correlation.
+- `indicators` — EMA/SMA/VWAP/volatility and signal primitives.
+- `risk` — drawdown, exposure, VaR/CVaR, Sharpe/Sortino, Greeks.
+- `pricing` — option/fixed-income pricing kernels.
+- `simulation` — deterministic Monte Carlo and scenario generation.
+- `backtest` — event ordering, clocks, fills, portfolio/accounting.
+- `orderbook` — L1/L2/L3 data structures and matching/simulation.
+- `optimization` — portfolio and execution optimization.
+- `actors` — feed/strategy/execution/risk orchestration.
+- `accelerator` — future SIMD/GPU device selection and transfer planning.
+
+## Performance rules
+
+1. Prefer struct-of-arrays (SoA) / columnar layouts on hot paths.
+2. Keep numerical kernels allocation-free where practical: caller supplies output buffers.
+3. No hidden global state, implicit clocks, or implicit randomness.
+4. Kernels are synchronous compute units; actor `await` stays at orchestration/I/O boundaries.
+5. Preserve deterministic ordering for replay/backtests.
+6. Make invalid numeric inputs explicit rather than silently propagating corrupted state.
+7. Optimize only behind a correctness oracle and benchmark contract.
+8. Do not leak accelerator-specific semantics into finance-domain APIs.
+
+## Bootstrap status
+
+The draft implementation now contains both a dependency-free Rust correctness oracle and the first Oreslang implementation tranche.
+
+- `src/model.ores` — closed/AOT-safe finance data shapes.
+- `src/scalar.ores` — validated scalar Oreslang kernels for simple returns, rolling mean, mean, sample variance, and maximum drawdown.
+- `src/kernels.ores` — `Region<T>` data-oriented kernels with explicit effects, SoA layout, automatic placement, SIMD/parallel loops, chunked Welford statistics, signal generation, order intent, and risk gating.
+- `design/pipeline.ores` — reviewed actor/compute topology kept outside source roots until OresVM has an explicit transferable-region capability; raw writable `Region<T>` is intentionally not mailbox-sendable.
+- `tests/scalar_smoke.ores` — executable smoke fixture for the integrated upstream language surface.
+- `fixtures/core-golden.json` — shared numerical vectors/error cases for cross-language parity.
+- `reference/rust/` — scalar parity/correctness oracle; it is not the public implementation.
+
+The Oreslang source deliberately targets active compiler/runtime contracts that are still split across upstream draft PRs. `docs/upstream-feature-matrix.md` records those dependencies. Two upstream seams remain explicit: direct `compute fnc` calls still execute synchronously in the current reference interpreter, and hardened actor boundaries correctly reject raw `Region<T>` mailbox values. Oreslang runtime issue #236 tracks the required unique region-transfer capability plus an awaitable compute-submission boundary; the library will not weaken either safety rule locally.
+
+See:
+
+- `docs/architecture.md`
+- `docs/actor-pipeline.md`
+- `docs/oreslang-api.md`
+- `docs/numerical-contracts.md`
+- `docs/library-boundaries.md`
+- `docs/upstream-feature-matrix.md`
+- `docs/roadmap.md`

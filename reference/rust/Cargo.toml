@@ -1,0 +1,11 @@
+[package]
+name = "oreslang-hpc-finance-reference"
+version = "0.0.1"
+edition = "2021"
+publish = false
+description = "Dependency-free numerical reference oracle for oreslang-hpc-finance"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]

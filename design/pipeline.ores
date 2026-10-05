@@ -1,0 +1,199 @@
+// DESIGN TARGET — intentionally outside the compiler source roots.
+//
+// Oreslang's hardened actor boundary correctly rejects raw Region<T> values as
+// mailbox data today. Do not "fix" this file by whitelisting Region<T>.
+//
+// oreslang-source.java issue #236 tracks the required explicit unique-transfer
+// region capability plus asynchronous compute submission. Once that contract
+// exists, this design should be rewritten to use that capability and promoted
+// into src/.
+//
+// The body below preserves the desired actor/kernel topology for review; it is
+// not part of the build until the ownership capability exists.
+
+import types (
+  Bar,
+  ReturnPoint,
+  RollingMeanPoint,
+  MomentState,
+  SignalPoint,
+  RiskDecisionPoint,
+  OrderIntent
+) from "./model.ores";
+
+import fnc (
+  simple_returns_kernel,
+  rolling_mean_kernel,
+  welford_chunk_kernel,
+  combine_moments_kernel,
+  latest_signal_kernel,
+  order_intent_kernel,
+  risk_gate_kernel
+) from "./kernels.ores";
+
+// One ownership envelope crosses the actor pipeline.
+//
+// The producer allocates/reserves the regions and validates all dimensions and
+// finance-domain preconditions before sending this message. Stages mutate only
+// the output regions assigned to their compute contracts, then transfer the
+// envelope to the next actor.
+//
+// This avoids object-per-tick traffic and avoids allocating numerical buffers in
+// actor turns or compute functions.
+struct ValidatedFinanceWorkBatch {
+  batch_id: int
+
+  bars: Region<Bar>
+  returns: Region<ReturnPoint>
+  rolling: Region<RollingMeanPoint>
+  chunks: Region<MomentState>
+  total_moments: Region<MomentState>
+  signals: Region<SignalPoint>
+  orders: Region<OrderIntent>
+  decisions: Region<RiskDecisionPoint>
+
+  bar_count: int
+  return_count: int
+  rolling_count: int
+  window: int
+  chunk_size: int
+  chunk_count: int
+
+  instrument_id: int
+  quantity: float
+  limit_price: float
+  max_quantity: float
+}
+
+struct PipelineAck {
+  batch_id: int
+}
+
+struct PipelineError {
+  batch_id: int
+  code: string
+}
+
+// Terminal execution boundary.
+//
+// Venue/network I/O intentionally does not live in a numerical kernel. A real
+// venue adapter can be composed behind this actor's private helper once the
+// application supplies the corresponding narrow I/O capability.
+define class ExecutionActor
+  extends Actor<ValidatedFinanceWorkBatch, PipelineAck, PipelineError> as
+
+  let int received_batches = 0;
+
+  private record_received(): void {
+    self.received_batches = self.received_batches + 1;
+    return;
+  }
+
+  pub receive(batch: ValidatedFinanceWorkBatch) -> void {
+    self.record_received();
+
+    // The decision/order regions remain owned by this terminal stage. A venue
+    // implementation must inspect the risk decision before external I/O.
+    // Keeping the terminal actor in this bootstrap proves the ownership and
+    // mailbox topology without granting ambient network authority.
+    return;
+  }
+
+end
+
+define class RiskActor
+  extends Actor<ValidatedFinanceWorkBatch, PipelineAck, PipelineError> as
+
+  let ActorRef<ExecutionActor> execution;
+
+  constructor(ActorRef<ExecutionActor> execution) {
+    self.execution = execution;
+  }
+
+  pub receive(batch: ValidatedFinanceWorkBatch) -> void {
+    risk_gate_kernel(
+      batch.orders,
+      batch.decisions,
+      batch.max_quantity
+    );
+
+    self.execution.send(rt take batch);
+    return;
+  }
+
+end
+
+define class StrategyActor
+  extends Actor<ValidatedFinanceWorkBatch, PipelineAck, PipelineError> as
+
+  let ActorRef<RiskActor> risk;
+
+  constructor(ActorRef<RiskActor> risk) {
+    self.risk = risk;
+  }
+
+  pub receive(batch: ValidatedFinanceWorkBatch) -> void {
+    latest_signal_kernel(
+      batch.returns,
+      batch.rolling,
+      batch.signals,
+      batch.return_count,
+      batch.rolling_count
+    );
+
+    order_intent_kernel(
+      batch.signals,
+      batch.orders,
+      batch.instrument_id,
+      batch.quantity,
+      batch.limit_price
+    );
+
+    self.risk.send(rt take batch);
+    return;
+  }
+
+end
+
+define class MarketDataActor
+  extends Actor<ValidatedFinanceWorkBatch, PipelineAck, PipelineError> as
+
+  let ActorRef<StrategyActor> strategy;
+
+  constructor(ActorRef<StrategyActor> strategy) {
+    self.strategy = strategy;
+  }
+
+  pub receive(batch: ValidatedFinanceWorkBatch) -> void {
+    simple_returns_kernel(
+      batch.bars,
+      batch.returns,
+      batch.bar_count
+    );
+
+    rolling_mean_kernel(
+      batch.returns,
+      batch.rolling,
+      batch.rolling_count,
+      batch.window
+    );
+
+    welford_chunk_kernel(
+      batch.returns,
+      batch.chunks,
+      batch.return_count,
+      batch.chunk_size,
+      batch.chunk_count
+    );
+
+    combine_moments_kernel(
+      batch.chunks,
+      batch.total_moments,
+      batch.chunk_count
+    );
+
+    self.strategy.send(rt take batch);
+    return;
+  }
+
+end
