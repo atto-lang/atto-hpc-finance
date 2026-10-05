@@ -5,14 +5,35 @@
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum KernelError {
-    OutputLength { expected: usize, actual: usize },
-    ColumnLength { column: &'static str, expected: usize, actual: usize },
-    InvalidWindow { window: usize, len: usize },
-    NonFinite { index: usize },
-    NonPositivePrice { index: usize },
-    NegativePrice { index: usize },
-    ZeroPreviousPrice { index: usize },
-    InsufficientSamples { required: usize, actual: usize },
+    OutputLength {
+        expected: usize,
+        actual: usize,
+    },
+    ColumnLength {
+        column: &'static str,
+        expected: usize,
+        actual: usize,
+    },
+    InvalidWindow {
+        window: usize,
+        len: usize,
+    },
+    NonFinite {
+        index: usize,
+    },
+    NonPositivePrice {
+        index: usize,
+    },
+    NegativePrice {
+        index: usize,
+    },
+    ZeroPreviousPrice {
+        index: usize,
+    },
+    InsufficientSamples {
+        required: usize,
+        actual: usize,
+    },
     InvalidAnnualization,
 }
 
@@ -207,9 +228,7 @@ pub fn sharpe_ratio(
             actual: returns.len(),
         });
     }
-    if !risk_free_per_period.is_finite()
-        || !periods_per_year.is_finite()
-        || periods_per_year <= 0.0
+    if !risk_free_per_period.is_finite() || !periods_per_year.is_finite() || periods_per_year <= 0.0
     {
         return Err(KernelError::InvalidAnnualization);
     }
@@ -232,7 +251,9 @@ pub fn sharpe_ratio(
         return Ok(None);
     }
 
-    Ok(Some(mean_excess / variance.sqrt() * periods_per_year.sqrt()))
+    Ok(Some(
+        mean_excess / variance.sqrt() * periods_per_year.sqrt(),
+    ))
 }
 
 /// Maximum drawdown over non-negative finite prices.
@@ -408,10 +429,7 @@ mod tests {
     #[test]
     fn kernels_reject_non_finite_inputs() {
         let values = [1.0, f64::NAN];
-        assert_eq!(
-            mean(&values),
-            Err(KernelError::NonFinite { index: 1 })
-        );
+        assert_eq!(mean(&values), Err(KernelError::NonFinite { index: 1 }));
     }
 
     #[test]
