@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "fixture_version": 1,
+  "cases": {
+    "simple_returns": {
+      "prices": [100.0, 110.0, 99.0],
+      "expected": [0.1, -0.1],
+      "absolute_tolerance": 1e-12
+    },
+    "rolling_mean": {
+      "values": [1.0, 2.0, 3.0, 4.0],
+      "window": 2,
+      "expected": [1.5, 2.5, 3.5],
+      "absolute_tolerance": 1e-12
+    },
+    "mean": {
+      "values": [1.0, 2.0, 3.0],
+      "expected": 2.0,
+      "absolute_tolerance": 1e-12
+    },
+    "sample_variance": {
+      "values": [1.0, 2.0, 3.0],
+      "expected": 1.0,
+      "absolute_tolerance": 1e-12
+    },
+    "max_drawdown": {
+      "prices": [100.0, 120.0, 90.0, 95.0, 80.0, 130.0],
+      "expected": {
+        "peak_index": 1,
+        "trough_index": 4,
+        "fraction": 0.3333333333333333
+      },
+      "absolute_tolerance": 1e-12
+    }
+  },
+  "errors": {
+    "simple_returns_zero_previous": {
+      "prices": [0.0, 1.0],
+      "code": "zero_previous_price",
+      "index": 0
+    },
+    "rolling_mean_zero_window": {
+      "values": [1.0, 2.0],
+      "window": 0,
+      "code": "invalid_window"
+    },
+    "max_drawdown_negative_price": {
+      "prices": [1.0, -0.5],
+      "code": "negative_price",
+      "index": 1
+    }
+  }
+}
