@@ -43,11 +43,11 @@ The draft implementation now contains both a dependency-free Rust correctness or
 - `src/model.ores` — closed/AOT-safe finance data shapes.
 - `src/scalar.ores` — validated scalar Oreslang kernels for simple returns, rolling mean, mean, sample variance, and maximum drawdown.
 - `src/kernels.ores` — `Region<T>` data-oriented kernels with explicit effects, SoA layout, automatic placement, SIMD/parallel loops, chunked Welford statistics, signal generation, order intent, and risk gating.
-- `src/pipeline.ores` — single-ingress actor chain from market data through strategy/risk to the execution boundary using an owned work envelope.
+- `design/pipeline.ores` — reviewed actor/compute topology kept outside source roots until OresVM has an explicit transferable-region capability; raw writable `Region<T>` is intentionally not mailbox-sendable.
 - `tests/scalar_smoke.ores` — executable smoke fixture for the integrated upstream language surface.
 - `reference/rust/` — scalar parity/correctness oracle; it is not the public implementation.
 
-The Oreslang source deliberately targets active compiler/runtime contracts that are still split across upstream draft PRs. `docs/upstream-feature-matrix.md` records those dependencies. In particular, direct `compute fnc` calls still execute synchronously in the current reference interpreter; the production CPU/GPU submission boundary must return an awaitable and release the actor execution lease.
+The Oreslang source deliberately targets active compiler/runtime contracts that are still split across upstream draft PRs. `docs/upstream-feature-matrix.md` records those dependencies. Two upstream seams remain explicit: direct `compute fnc` calls still execute synchronously in the current reference interpreter, and hardened actor boundaries correctly reject raw `Region<T>` mailbox values. Oreslang runtime issue #236 tracks the required unique region-transfer capability plus an awaitable compute-submission boundary; the library will not weaken either safety rule locally.
 
 See:
 
