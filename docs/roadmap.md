@@ -25,10 +25,12 @@
 
 ## Phase 2 — actor trading pipeline
 
-- [x] `MarketDataActor` compute/orchestration contract.
-- [x] `StrategyActor` signal/order-intent contract.
-- [x] `RiskActor` pre-trade risk-gate contract.
-- [x] `ExecutionActor` terminal ownership boundary.
+- [x] Define `MarketDataActor -> compute -> StrategyActor -> RiskActor -> ExecutionActor` topology and ownership rules under `design/`.
+- [ ] Promote the actor pipeline into `src/` after oreslang-source.java issue #236 supplies explicit unique region transfer + async compute submission.
+- [ ] `MarketDataActor` production compute/orchestration implementation.
+- [ ] `StrategyActor` production signal/order-intent implementation.
+- [ ] `RiskActor` production pre-trade risk-gate implementation.
+- [ ] `ExecutionActor` production terminal ownership/order-routing implementation.
 - [ ] Venue/simulator order-routing capability behind `ExecutionActor`.
 - [ ] Deterministic simulation clock.
 - [ ] Ordered event journal + replay.
@@ -60,6 +62,7 @@
 - [ ] Runtime chunk-task executor.
 - [x] Parallel/SIMD loop contracts on independent finance kernels.
 - [ ] Concrete SIMD backend variants.
+- [ ] Explicit transferable-region capability for actor/task ownership handoff (upstream issue #236).
 - [ ] GPU backend variant(s) and asynchronous submission boundary.
 - [ ] Transfer planner / device-resident batches.
 - [ ] Differential correctness suite against scalar oracle.
