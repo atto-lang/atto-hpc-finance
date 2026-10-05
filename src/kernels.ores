@@ -1,4 +1,4 @@
-import types (Bar, ReturnPoint, RollingMeanPoint, MomentState, SignalPoint, RiskDecisionPoint, OrderIntent) from "./model.ores";
+import * as model from "./model.ores";
 
 // Data-oriented accelerated layer.
 //
@@ -8,8 +8,8 @@ import types (Bar, ReturnPoint, RollingMeanPoint, MomentState, SignalPoint, Risk
 // CPU chunks, SIMD, or a future GPU variant without changing finance semantics.
 
 pub compute fnc simple_returns_kernel(
-  Region<Bar> bars,
-  Region<ReturnPoint> out,
+  Region<model.Bar> bars,
+  Region<model.ReturnPoint> out,
   int count
 ) -> void
 reads bars.close;
@@ -25,8 +25,8 @@ place auto;
 }
 
 pub compute fnc rolling_mean_kernel(
-  Region<ReturnPoint> values,
-  Region<RollingMeanPoint> out,
+  Region<model.ReturnPoint> values,
+  Region<model.RollingMeanPoint> out,
   int output_count,
   int window
 ) -> void
@@ -52,8 +52,8 @@ place auto;
 // The inner loop uses the fixed chunk_size parameter as its bound; the final
 // chunk masks elements whose computed index is outside count.
 pub compute fnc welford_chunk_kernel(
-  Region<ReturnPoint> values,
-  Region<MomentState> chunks,
+  Region<model.ReturnPoint> values,
+  Region<model.MomentState> chunks,
   int count,
   int chunk_size,
   int chunk_count
@@ -94,8 +94,8 @@ place auto;
 // backend may provide a fixed-tree reduction variant, but it must advertise
 // different reproducibility guarantees rather than silently changing order.
 pub compute fnc combine_moments_kernel(
-  Region<MomentState> chunks,
-  Region<MomentState> total,
+  Region<model.MomentState> chunks,
+  Region<model.MomentState> total,
   int chunk_count
 ) -> void
 reads chunks.count, chunks.mean, chunks.m2;
@@ -141,9 +141,9 @@ place cpu;
 // a preallocated work envelope without allocating inside a compute function.
 
 pub compute fnc latest_signal_kernel(
-  Region<ReturnPoint> returns,
-  Region<RollingMeanPoint> rolling,
-  Region<SignalPoint> signal,
+  Region<model.ReturnPoint> returns,
+  Region<model.RollingMeanPoint> rolling,
+  Region<model.SignalPoint> signal,
   int return_count,
   int rolling_count
 ) -> void
@@ -170,8 +170,8 @@ place auto;
 }
 
 pub compute fnc order_intent_kernel(
-  Region<SignalPoint> signal,
-  Region<OrderIntent> order,
+  Region<model.SignalPoint> signal,
+  Region<model.OrderIntent> order,
   int instrument_id,
   float quantity,
   float limit_price
@@ -192,8 +192,8 @@ place cpu;
 }
 
 pub compute fnc risk_gate_kernel(
-  Region<OrderIntent> order,
-  Region<RiskDecisionPoint> decision,
+  Region<model.OrderIntent> order,
+  Region<model.RiskDecisionPoint> decision,
   float max_quantity
 ) -> void
 reads order.side, order.quantity;
@@ -205,7 +205,15 @@ place cpu;
   let approved = true;
   let reason_code = 0;
 
-  if order[0].side == 0 {
+  val quantity_finite =
+    (order[0].quantity - order[0].quantity) == 0.0;
+  val max_quantity_finite =
+    (max_quantity - max_quantity) == 0.0;
+
+  if !quantity_finite || !max_quantity_finite || max_quantity < 0.0 {
+    approved = false;
+    reason_code = 4;
+  } elseif order[0].side == 0 {
     approved = false;
     reason_code = 1;
   } elseif order[0].quantity < 0.0 {
