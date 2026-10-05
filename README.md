@@ -45,6 +45,7 @@ The draft implementation now contains both a dependency-free Rust correctness or
 - `src/kernels.ores` — `Region<T>` data-oriented kernels with explicit effects, SoA layout, automatic placement, SIMD/parallel loops, chunked Welford statistics, signal generation, order intent, and risk gating.
 - `design/pipeline.ores` — reviewed actor/compute topology kept outside source roots until OresVM has an explicit transferable-region capability; raw writable `Region<T>` is intentionally not mailbox-sendable.
 - `tests/scalar_smoke.ores` — executable smoke fixture for the integrated upstream language surface.
+- `fixtures/core-golden.json` — shared numerical vectors/error cases for cross-language parity.
 - `reference/rust/` — scalar parity/correctness oracle; it is not the public implementation.
 
 The Oreslang source deliberately targets active compiler/runtime contracts that are still split across upstream draft PRs. `docs/upstream-feature-matrix.md` records those dependencies. Two upstream seams remain explicit: direct `compute fnc` calls still execute synchronously in the current reference interpreter, and hardened actor boundaries correctly reject raw `Region<T>` mailbox values. Oreslang runtime issue #236 tracks the required unique region-transfer capability plus an awaitable compute-submission boundary; the library will not weaken either safety rule locally.
@@ -55,5 +56,6 @@ See:
 - `docs/actor-pipeline.md`
 - `docs/oreslang-api.md`
 - `docs/numerical-contracts.md`
+- `docs/library-boundaries.md`
 - `docs/upstream-feature-matrix.md`
 - `docs/roadmap.md`
