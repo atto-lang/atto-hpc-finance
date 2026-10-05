@@ -91,12 +91,16 @@ pub fn simple_returns_into(prices: &[f64], out: &mut [f64]) -> Result<(), Kernel
     expect_output(out.len(), expected)?;
     require_finite(prices)?;
 
+    // Validate every denominator before the first write so an error never
+    // exposes a partially-updated caller buffer.
     for i in 1..prices.len() {
-        let previous = prices[i - 1];
-        if previous == 0.0 {
+        if prices[i - 1] == 0.0 {
             return Err(KernelError::ZeroPreviousPrice { index: i - 1 });
         }
-        out[i - 1] = prices[i] / previous - 1.0;
+    }
+
+    for i in 1..prices.len() {
+        out[i - 1] = prices[i] / prices[i - 1] - 1.0;
     }
     Ok(())
 }
@@ -378,6 +382,17 @@ mod tests {
             simple_returns_into(&prices, &mut out),
             Err(KernelError::ZeroPreviousPrice { index: 0 })
         );
+    }
+
+    #[test]
+    fn simple_returns_validation_is_fail_before_write() {
+        let prices = [2.0, 4.0, 0.0, 1.0];
+        let mut out = [7.0, 8.0, 9.0];
+        assert_eq!(
+            simple_returns_into(&prices, &mut out),
+            Err(KernelError::ZeroPreviousPrice { index: 2 })
+        );
+        assert_eq!(out, [7.0, 8.0, 9.0]);
     }
 
     #[test]
