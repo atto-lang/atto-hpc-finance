@@ -1,6 +1,18 @@
-import types (KernelError, Drawdown) from "./model.ores";
-
 // Scalar correctness layer.
+
+struct KernelError {
+  code: string
+  index: int
+  expected: int
+  actual: int
+}
+
+struct Drawdown {
+  peak_index: int
+  trough_index: int
+  fraction: float
+}
+
 //
 // This module intentionally uses ordinary arrays rather than Region<T>. It is
 // the Oreslang reference path for validation, small batches, differential
