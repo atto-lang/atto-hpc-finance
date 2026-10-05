@@ -1,4 +1,4 @@
-import types (Bar, ReturnPoint, RollingMeanPoint, MomentState) from "./model.ores";
+import types (Bar, ReturnPoint, RollingMeanPoint, MomentState, SignalPoint, RiskDecisionPoint, OrderIntent) from "./model.ores";
 
 // Data-oriented accelerated layer.
 //
@@ -132,5 +132,91 @@ place cpu;
   total[0].count = total_count;
   total[0].mean = total_mean;
   total[0].m2 = total_m2;
+  return;
+}
+
+
+// Strategy/risk kernels keep actor code out of dense numerical state.
+// These operate on one-slot output regions so the orchestration layer can reuse
+// a preallocated work envelope without allocating inside a compute function.
+
+pub compute fnc latest_signal_kernel(
+  Region<ReturnPoint> returns,
+  Region<RollingMeanPoint> rolling,
+  Region<SignalPoint> signal,
+  int return_count,
+  int rolling_count
+) -> void
+reads returns.value, rolling.value;
+discards signal.score, signal.side;
+layout returns soa;
+layout rolling soa;
+layout signal soa;
+place auto;
+{
+  val score = returns[return_count - 1].value
+    - rolling[rolling_count - 1].value;
+
+  let side = 0;
+  if score > 0.0 {
+    side = 1;
+  } elseif score < 0.0 {
+    side = -1;
+  }
+
+  signal[0].score = score;
+  signal[0].side = side;
+  return;
+}
+
+pub compute fnc order_intent_kernel(
+  Region<SignalPoint> signal,
+  Region<OrderIntent> order,
+  int instrument_id,
+  float quantity,
+  float limit_price
+) -> void
+reads signal.side;
+discards order.instrument_id, order.side, order.quantity, order.limit_price;
+layout signal soa;
+layout order soa;
+place cpu;
+{
+  val side = signal[0].side;
+
+  order[0].instrument_id = instrument_id;
+  order[0].side = side;
+  order[0].quantity = side == 0 ? 0.0 : quantity;
+  order[0].limit_price = limit_price;
+  return;
+}
+
+pub compute fnc risk_gate_kernel(
+  Region<OrderIntent> order,
+  Region<RiskDecisionPoint> decision,
+  float max_quantity
+) -> void
+reads order.side, order.quantity;
+discards decision.approved, decision.reason_code;
+layout order soa;
+layout decision soa;
+place cpu;
+{
+  let approved = true;
+  let reason_code = 0;
+
+  if order[0].side == 0 {
+    approved = false;
+    reason_code = 1;
+  } elseif order[0].quantity < 0.0 {
+    approved = false;
+    reason_code = 2;
+  } elseif order[0].quantity > max_quantity {
+    approved = false;
+    reason_code = 3;
+  }
+
+  decision[0].approved = approved;
+  decision[0].reason_code = reason_code;
   return;
 }
