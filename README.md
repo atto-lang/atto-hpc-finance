@@ -63,3 +63,12 @@ See:
 ## Compiler PR checkpoint (2026-10-06)
 
 A [repository-specific compiler compatibility matrix](docs/compiler-pr-sync.md) tracks the 10 newest `oreslang-source.java` PRs. They remain unmerged upstream; existing demos, build flags, and stable compiler references stay unchanged pending exact-SHA conformance testing.
+
+## Continuous integration
+
+The `Numerical reference oracle` workflow runs Rust formatting, all oracle tests,
+and Clippy with warnings denied on pushes and pull requests. It uses read-only
+permissions and no repository secrets; the oracle has no external dependencies.
+This gate validates the Rust reference only. It does not claim Oreslang kernel,
+actor-region transfer, GPU, or cross-language parity coverage. Those remain
+subject to the compiler integration contracts above.
