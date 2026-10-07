@@ -59,3 +59,7 @@ See:
 - `docs/library-boundaries.md`
 - `docs/upstream-feature-matrix.md`
 - `docs/roadmap.md`
+
+## Compiler PR checkpoint (2026-10-06)
+
+A [repository-specific compiler compatibility matrix](docs/compiler-pr-sync.md) tracks the 10 newest `oreslang-source.java` PRs. They remain unmerged upstream; existing demos, build flags, and stable compiler references stay unchanged pending exact-SHA conformance testing.
