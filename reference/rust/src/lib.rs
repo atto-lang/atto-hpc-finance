@@ -139,7 +139,14 @@ pub fn log_returns_into(prices: &[f64], out: &mut [f64]) -> Result<(), KernelErr
     }
 
     for i in 1..prices.len() {
-        out[i - 1] = (prices[i] / prices[i - 1]).ln();
+        let ratio = prices[i] / prices[i - 1];
+        // Finite positive prices can still overflow/underflow their ratio.
+        // Keep direct ln near 1 for precision; log differences cover extremes.
+        out[i - 1] = if ratio.is_finite() && ratio > 0.0 {
+            ratio.ln()
+        } else {
+            prices[i].ln() - prices[i - 1].ln()
+        };
     }
     Ok(())
 }
@@ -344,6 +351,20 @@ mod tests {
             log_returns_into(&prices, &mut out),
             Err(KernelError::NonPositivePrice { index: 1 })
         );
+    }
+
+    #[test]
+    fn log_returns_remain_finite_across_full_positive_price_range() {
+        let smallest = f64::from_bits(1);
+        let largest = f64::MAX;
+        let mut out = [0.0; 2];
+        log_returns_into(&[smallest, largest, smallest], &mut out).unwrap();
+        let expected = largest.ln() - smallest.ln();
+        assert!(out.iter().all(|x| x.is_finite()));
+        approx_eq(out[0], expected, 1e-12);
+        approx_eq(out[1], -expected, 1e-12);
+        log_returns_into(&[1.0, 1.0 + f64::EPSILON, 1.0], &mut out).unwrap();
+        assert_eq!(out[0], (1.0 + f64::EPSILON).ln());
     }
 
     #[test]
