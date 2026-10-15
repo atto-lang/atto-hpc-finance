@@ -187,10 +187,16 @@ pub fn mean(values: &[f64]) -> Result<f64, KernelError> {
     }
     require_finite(values)?;
 
-    let mut m = 0.0;
+    let mut m: f64 = 0.0;
     for (i, x) in values.iter().copied().enumerate() {
         let n = (i + 1) as f64;
-        m += (x - m) / n;
+        // Opposite-sign finite endpoints can overflow x-m even though their
+        // weighted mean is representable. Weight each term before adding.
+        if x.is_sign_negative() != m.is_sign_negative() {
+            m = m * ((n - 1.0) / n) + x / n;
+        } else {
+            m += (x - m) / n;
+        }
     }
     Ok(m)
 }
@@ -373,6 +379,15 @@ mod tests {
         let mut out = [0.0; 3];
         rolling_mean_into(&values, 2, &mut out).unwrap();
         assert_eq!(out, [1.5, 2.5, 3.5]);
+    }
+
+    #[test]
+    fn mean_remains_finite_for_opposite_extreme_endpoints() {
+        assert_eq!(mean(&[f64::MAX, -f64::MAX]), Ok(0.0));
+        assert_eq!(mean(&[-f64::MAX, f64::MAX]), Ok(0.0));
+        assert_eq!(mean(&[f64::MAX, f64::MAX]), Ok(f64::MAX));
+        assert_eq!(mean(&[-f64::MAX, -f64::MAX]), Ok(-f64::MAX));
+        approx_eq(mean(&[1.0, 2.0, 3.0]).unwrap(), 2.0, 1e-12);
     }
 
     #[test]
