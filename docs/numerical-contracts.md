@@ -55,7 +55,7 @@ Log return:
 r_t = ln(p_t / p_(t-1))
 ```
 
-Log returns require strictly positive prices.
+Log returns require strictly positive prices. The Rust reference keeps direct ratio logarithms for ordinary prices and uses a difference of logarithms when the ratio overflows or underflows, so finite positive extreme prices still produce finite log returns.
 
 ## Drawdown
 
