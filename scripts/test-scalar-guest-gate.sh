@@ -8,11 +8,15 @@ mkdir -p "$tmp/source/scripts" "$tmp/source/tests" "$tmp/bin" "$tmp/evidence"
 cp "$root/scripts/run-scalar-guest-exact-head.sh" "$tmp/source/scripts/"
 printf 'placeholder\n' > "$tmp/source/tests/scalar_smoke.ores"
 printf 'placeholder\n' > "$tmp/source/tests/scalar_overflow_atomic.ores"
+printf 'placeholder\n' > "$tmp/source/tests/mean_extremes.ores"
+printf 'placeholder\n' > "$tmp/source/tests/batch_shape.ores"
 cat > "$tmp/bin/mock-cli" <<'CLI'
 #!/bin/sh
 case "$1" in
   */scalar_smoke.ores) printf 'true:true:true:true' ;;
   */scalar_overflow_atomic.ores) printf 'true:true:true:true:true:true:true' ;;
+  */mean_extremes.ores) printf 'true:true:true:true:true' ;;
+  */batch_shape.ores) printf 'true:true:true:true:true' ;;
   *) exit 22 ;;
 esac
 CLI
@@ -28,6 +32,8 @@ common=("EXPECTED_SOURCE_SHA=$source_sha" "EXPECTED_SOURCE_TREE=$source_tree" "E
 env "${common[@]}" bash "$gate" > "$tmp/pass.log"
 grep -qx 'HPC_GUEST_CASE=PASS scalar_smoke' "$tmp/pass.log"
 grep -qx 'HPC_GUEST_CASE=PASS scalar_overflow_atomic' "$tmp/pass.log"
+grep -qx 'HPC_GUEST_CASE=PASS mean_extremes' "$tmp/pass.log"
+grep -qx 'HPC_GUEST_CASE=PASS batch_shape' "$tmp/pass.log"
 grep -qx 'HPC_GUEST_STATUS=EXACT_HEAD_SCALAR_ONLY' "$tmp/pass.log"
 # A malformed identity pin must fail before any mock execution.
 set +e

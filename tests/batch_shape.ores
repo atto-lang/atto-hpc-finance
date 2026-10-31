@@ -1,0 +1,53 @@
+import module finance_scalar from "../src/scalar.ores";
+
+// Exact compiler guest acceptance fixture. Not a passing test until compiled
+// and executed against an explicitly pinned Oreslang compiler/runner.
+// Expected stdout: true:true:true:true:true
+fnc test_shape(int bars, int window, int chunks, int bars_capacity)
+  -> ComputeBatchShape {
+  return ComputeBatchShape{
+    bar_count: bars,
+    return_count: 4,
+    rolling_count: 3,
+    window: window,
+    chunk_size: 3,
+    chunk_count: chunks,
+    bars_capacity: bars_capacity,
+    returns_capacity: 4,
+    rolling_capacity: 3,
+    chunks_capacity: 2,
+    total_capacity: 1,
+    signal_capacity: 1,
+    order_capacity: 1,
+    decision_capacity: 1
+  };
+}
+
+pub routine main() -> void {
+  val valid = finance_scalar.validate_compute_batch_shape(
+    test_shape(5, 2, 2, 5)
+  );
+  val bad_window = finance_scalar.validate_compute_batch_shape(
+    test_shape(5, 0, 2, 5)
+  );
+  val bad_chunk_count = finance_scalar.validate_compute_batch_shape(
+    test_shape(5, 2, 1, 5)
+  );
+  val bad_capacity = finance_scalar.validate_compute_batch_shape(
+    test_shape(5, 2, 2, 4)
+  );
+  val missing_returns = finance_scalar.validate_compute_batch_shape(
+    test_shape(1, 2, 2, 1)
+  );
+
+  stdio.stdout.write(valid.is_ok() && valid.unwrap() == 2);
+  stdio.stdout.write(":");
+  stdio.stdout.write(!bad_window.is_ok());
+  stdio.stdout.write(":");
+  stdio.stdout.write(!bad_chunk_count.is_ok());
+  stdio.stdout.write(":");
+  stdio.stdout.write(!bad_capacity.is_ok());
+  stdio.stdout.write(":");
+  stdio.stdout.write(!missing_returns.is_ok());
+  return;
+}

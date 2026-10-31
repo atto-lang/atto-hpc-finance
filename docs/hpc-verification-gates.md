@@ -60,9 +60,12 @@ source-free execution path is a prerequisite, not evidence of correctness.
 ## Source-local exact-head scalar guest runner
 
 The checked-in `scripts/run-scalar-guest-exact-head.sh` is an **opt-in**
-compiler-backed execution gate, not a mock runner. It executes exactly
-`tests/scalar_smoke.ores` and `tests/scalar_overflow_atomic.ores`
+compiler-backed execution gate, not a mock runner. It executes exactly four standalone guest fixtures:
+`tests/scalar_smoke.ores`, `tests/scalar_overflow_atomic.ores`,
+`tests/mean_extremes.ores`, and `tests/batch_shape.ores`
 through one reviewed Oreslang CLI and compares byte-exact expected stdout.
+The four fixtures yield 4, 7, 5, and 5 colon-separated `true` values,
+respectively. A mock-only self-test cannot certify any of those guest runs.
 Any compiler stderr, nonzero exit, output mismatch, dirty checkout, source
 identity mismatch, or compiler digest mismatch fails closed.
 
@@ -128,7 +131,11 @@ PR #12 adds independent extreme-mean coverage; PR #13 combines an
 earlier PR #11 head with PR #12; PR #14 stacks compute-batch shape
 and Welford index bounds on PR #13. PR #11 has advanced beyond the
 ancestor in PR #13 and now also includes mean parity and extra
-runtime-gate fixtures. Before merging, resolve this stack on a
-reviewed **single** tree, preserving both PR #14 batch bounds and
-PR #11 late changes. Do not merge the overlapping drafts in parallel,
-and do not infer executed compiler or Rust coverage from mergeability.
+runtime-gate fixtures. The consolidated review candidate builds directly on the **latest exact PR
+#11 commit** `4e84714c727416207bfb0c0722fa78028bb18171`, adding PR #14's
+distinct batch shape and guarded Welford changes and PR #12's independent
+five-case mean fixture. It preserves the PR #11 seven-case overflow fixture,
+source-free admission canary, exact-head guest gate and numerical hardening.
+Do not merge the overlapping drafts in parallel; require the consolidated
+commit's exact root tree, executed tests and independent review. PR #14's
+original branch remains a historical draft, not an independent landing path.
