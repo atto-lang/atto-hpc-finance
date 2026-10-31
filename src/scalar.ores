@@ -225,9 +225,16 @@ define module finance_scalar
       running_mean = running_mean + delta / running_count;
       val delta2 = values[i] - running_mean;
       m2 = m2 + delta * delta2;
+      if !is_finite_value(running_mean) || !is_finite_value(m2) {
+        return Err(kernel_error("non_finite_result", 0, 0, 0));
+      }
     }
 
-    return Ok(m2 / (running_count - 1));
+    val variance = m2 / (running_count - 1);
+    if !is_finite_value(variance) {
+      return Err(kernel_error("non_finite_result", 0, 0, 0));
+    }
+    return Ok(variance);
   }
 
   pub fnc max_drawdown(
