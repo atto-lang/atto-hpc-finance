@@ -147,6 +147,56 @@ mod tests {
         }
     }
 
+    #[cfg(target_pointer_width = "64")]
+    #[test]
+    fn chunk_count_is_exact_above_f64_integer_precision_and_at_i64_max() {
+        // 2^53 + 4 returns, size 2: floating conversion would round
+        // the odd numerator return_count - 1 and add a spurious chunk.
+        let huge = BatchShape {
+            bar_count: 9_007_199_254_740_997,
+            return_count: 9_007_199_254_740_996,
+            rolling_count: 9_007_199_254_740_996,
+            window: 1,
+            chunk_size: 2,
+            chunk_count: 4_503_599_627_370_498,
+            bars_capacity: 9_007_199_254_740_997,
+            returns_capacity: 9_007_199_254_740_996,
+            rolling_capacity: 9_007_199_254_740_996,
+            chunks_capacity: 4_503_599_627_370_498,
+            total_capacity: 1,
+            signal_capacity: 1,
+            order_capacity: 1,
+            decision_capacity: 1,
+        };
+        assert_eq!(validate_batch_shape(huge), Ok(huge.chunk_count));
+        assert_eq!(
+            validate_batch_shape(BatchShape {
+                chunk_count: huge.chunk_count + 1,
+                ..huge
+            }),
+            Err(BatchShapeError::ChunkCount)
+        );
+
+        let limit = i64::MAX as usize;
+        let boundary = BatchShape {
+            bar_count: limit,
+            return_count: limit - 1,
+            rolling_count: 1,
+            window: limit - 1,
+            chunk_size: limit,
+            chunk_count: 1,
+            bars_capacity: limit,
+            returns_capacity: limit - 1,
+            rolling_capacity: 1,
+            chunks_capacity: 1,
+            total_capacity: 1,
+            signal_capacity: 1,
+            order_capacity: 1,
+            decision_capacity: 1,
+        };
+        assert_eq!(validate_batch_shape(boundary), Ok(1));
+    }
+
     #[test]
     fn ceiling_math_does_not_overflow_near_usize_max() {
         let max = usize::MAX;
