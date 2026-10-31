@@ -124,6 +124,10 @@ define class RiskActor
 
     // Risk rejection ends the pipeline; never forward a denied intent
     // to the execution stage (which independently checks the decision).
+    // IMPORTANT: this is not an executable async-compute contract.
+    // A real submission must await its completion/fence while retaining
+    // unique Region ownership before reading decision[0]. Otherwise an
+    // earlier batch's "approved" bit could be observed after dispatch.
     if !batch.decisions[0].approved {
       return;
     }
