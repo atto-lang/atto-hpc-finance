@@ -66,6 +66,34 @@ define module finance_scalar
     };
   }
 
+  // Exact nonnegative quotient without the '/' operator. Some Oreslang
+  // evaluator paths use floating arithmetic for '/', which rounds counts
+  // beyond 2^53 and can admit a wrong physical Region extent. The caller
+  // guarantees dividend >= 0 and divisor > 0.
+  fnc exact_nonnegative_quotient(int dividend, int divisor) -> int {
+    let remaining = dividend;
+    let quotient = 0;
+    loop {
+      if remaining < divisor {
+        break;
+      }
+      let multiple = 1;
+      let chunk = divisor;
+      loop {
+        // 2 * chunk <= remaining, without ever computing 2 * chunk
+        // before checking it against the signed-integer boundary.
+        if chunk > remaining - chunk {
+          break;
+        }
+        chunk = chunk + chunk;
+        multiple = multiple + multiple;
+      }
+      remaining = remaining - chunk;
+      quotient = quotient + multiple;
+    }
+    return quotient;
+  }
+
   // Logical and physical extents are validated before any Region-based kernel
   // launch. A correct shape alone does not grant ownership or mailbox rights.
   // The calling boundary must obtain capacities from trustworthy Region metadata.
@@ -104,8 +132,11 @@ define module finance_scalar
       ));
     }
 
-    // Exact ceil division without (count + chunk_size - 1) overflow.
-    val expected_chunks = 1 + (shape.return_count - 1) / shape.chunk_size;
+    // Exact ceil division: 1 + floor((returns - 1)/chunk_size).
+    // No '/' floating conversion and no count + size - 1 overflow.
+    val expected_chunks = 1 + exact_nonnegative_quotient(
+      shape.return_count - 1, shape.chunk_size
+    );
     if shape.chunk_count != expected_chunks {
       return Err(kernel_error(
         "chunk_count", -1, expected_chunks, shape.chunk_count
