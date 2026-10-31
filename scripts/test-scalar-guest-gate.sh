@@ -16,7 +16,7 @@ case "$1" in
   */scalar_smoke.ores) printf 'true:true:true:true' ;;
   */scalar_overflow_atomic.ores) printf 'true:true:true:true:true:true:true' ;;
   */mean_extremes.ores) printf 'true:true:true:true:true' ;;
-  */batch_shape.ores) printf 'true:true:true:true:true' ;;
+  */batch_shape.ores) printf 'true:true:true:true:true:true:true' ;;
   *) exit 22 ;;
 esac
 CLI
