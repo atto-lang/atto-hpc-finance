@@ -187,7 +187,15 @@ define module finance_scalar
     let result = 0.0;
     for int i = 0; i < count; i++ {
       val n = i + 1;
-      result = result + (values[i] - result) / n;
+      val value = values[i];
+      // The subtraction value - result can overflow for opposite-sign
+      // finite extremes even when their weighted mean is representable.
+      // Match the independently maintained Rust reference's update rule.
+      if (value < 0.0 && result > 0.0) || (value > 0.0 && result < 0.0) {
+        result = result * ((n - 1.0) / n) + value / n;
+      } else {
+        result = result + (value - result) / n;
+      }
     }
     return Ok(result);
   }
