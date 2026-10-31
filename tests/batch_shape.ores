@@ -2,7 +2,7 @@ import module finance_scalar from "../src/scalar.ores";
 
 // Exact compiler guest acceptance fixture. Not a passing test until compiled
 // and executed against an explicitly pinned Oreslang compiler/runner.
-// Expected stdout: true:true:true:true:true
+// Expected stdout: true:true:true:true:true:true:true
 fnc test_shape(int bars, int window, int chunks, int bars_capacity)
   -> ComputeBatchShape {
   return ComputeBatchShape{
@@ -49,5 +49,51 @@ pub routine main() -> void {
   stdio.stdout.write(!bad_capacity.is_ok());
   stdio.stdout.write(":");
   stdio.stdout.write(!missing_returns.is_ok());
+  stdio.stdout.write(":");
+
+  // Above 2^53, an evaluator that silently converts '/' to f64 can
+  // round the (return_count - 1) quotient and miscompute chunk_count.
+  val large_shape = ComputeBatchShape{
+    bar_count: 9007199254740997,
+    return_count: 9007199254740996,
+    rolling_count: 9007199254740996,
+    window: 1,
+    chunk_size: 2,
+    chunk_count: 4503599627370498,
+    bars_capacity: 9007199254740997,
+    returns_capacity: 9007199254740996,
+    rolling_capacity: 9007199254740996,
+    chunks_capacity: 4503599627370498,
+    total_capacity: 1,
+    signal_capacity: 1,
+    order_capacity: 1,
+    decision_capacity: 1
+  };
+  val large_result = finance_scalar.validate_compute_batch_shape(large_shape);
+  stdio.stdout.write(
+    large_result.is_ok() && large_result.unwrap() == 4503599627370498
+  );
+  stdio.stdout.write(":");
+
+  // Maximum signed i64: subtraction before division, no oversized
+  // intermediate count + chunk_size - 1 and no linear subtraction loop.
+  val boundary_shape = ComputeBatchShape{
+    bar_count: 9223372036854775807,
+    return_count: 9223372036854775806,
+    rolling_count: 1,
+    window: 9223372036854775806,
+    chunk_size: 9223372036854775807,
+    chunk_count: 1,
+    bars_capacity: 9223372036854775807,
+    returns_capacity: 9223372036854775806,
+    rolling_capacity: 1,
+    chunks_capacity: 1,
+    total_capacity: 1,
+    signal_capacity: 1,
+    order_capacity: 1,
+    decision_capacity: 1
+  };
+  val boundary_result = finance_scalar.validate_compute_batch_shape(boundary_shape);
+  stdio.stdout.write(boundary_result.is_ok() && boundary_result.unwrap() == 1);
   return;
 }
