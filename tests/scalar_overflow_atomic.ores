@@ -3,7 +3,7 @@ import module finance_scalar from "../src/scalar.ores";
 // Exact guest acceptance target for fail-before-write and arithmetic overflow.
 // Requires the pinned upstream Oreslang compiler; DO NOT count static source
 // inspection, Rust or host output as execution of this fixture.
-// Expected stdout: true:true:true:true:true:true
+// Expected stdout: true:true:true:true:true:true:true
 pub routine main() -> void {
   // IEEE-754 f64: 2 * 1e308 overflows; 2 * 1e300 does not.
   val float big = 1.0e308;
@@ -53,6 +53,14 @@ pub routine main() -> void {
   stdio.stdout.write(valid.is_ok() &&
     valid_out[0] > 0.099 && valid_out[0] < 0.101 &&
     valid_out[1] < -0.099 && valid_out[1] > -0.101
+  );
+  stdio.stdout.write(":");
+
+  // Unlike the naive (x - mean)/n formula, opposite-sign finite
+  // endpoints must not overflow when their arithmetic mean is zero.
+  val extreme_mean = finance_scalar.mean(arr[big, 0.0 - big], 2);
+  stdio.stdout.write(
+    extreme_mean.is_ok() && extreme_mean.unwrap() == 0.0
   );
   return;
 }
