@@ -79,6 +79,36 @@ The caller supplies the risk-free return **per period** and the annualization pe
 
 If volatility is zero, the reference implementation returns no finite Sharpe value instead of manufacturing Infinity.
 
+## Pre-trade limit-order risk boundary
+
+The final `risk_gate_kernel` decision is **fail closed**, even if the
+upstream batch validator or strategy stage claims that the order was already
+checked. An unapproved decision must never be passed to venue I/O.
+
+- A limit-order side must be exactly `1` (buy) or `-1` (sell). `0`
+  explicitly means no order and cannot be approved.
+- Quantity must be finite and strictly positive; the configured maximum
+  must be finite and nonnegative. A quantity exactly equal to the maximum is
+  permitted.
+- Limit price must be finite and strictly positive. A market order must
+  use a distinct, explicitly authorized order kind rather than a zero-price
+  limit order.
+- Unknown side values, `NaN`, positive/negative infinity, negative/zero
+  quantities, invalid prices, and over-limit quantities are denied.
+- `RiskDecisionPoint.reason_code` is stable for this initial contract:
+  `0=approved`, `1=no_side`, `2=negative_quantity`,
+  `3=quantity_exceeds_limit`, `4=invalid_numeric`,
+  `5=invalid_side`, `6=invalid_limit_price`, `7=zero_quantity`.
+  The first matching rejection wins in this specified order: invalid
+  numeric, no side, invalid side, negative quantity, zero quantity,
+  invalid limit price, exceeding max quantity.
+
+The Rust `pretrade_risk_gate` reference has adversarial unit tests for
+this policy. **Rust-only tests do not establish that the Oreslang compute
+kernel ran**, nor do they validate exchange integration. A future exact-head
+guest test must compare the Oreslang decision/reason codes against these
+vectors and assert that rejected orders never reach a venue capability.
+
 ## Randomness
 
 Simulation APIs must accept explicit seed/stream state. No finance kernel may pull randomness from hidden process-global state.
