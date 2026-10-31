@@ -91,3 +91,44 @@ behavior** with a mock executable. The existing Rust workflow runs this
 self-test; its `MOCK_ONLY_NOT_ORESLANG` status is not guest evidence.
 The self-test cannot repair GitHub Actions runner admission failures.
 
+
+## Source-free admission diagnostic
+
+The separate `.github/workflows/source-free-runner-canary.yml` runs
+a single shell echo on `ubuntu-latest`, without checkout, dependencies,
+private source, secrets, or network access from job steps.
+
+At commit `4bd0f8689d8079b54e2d1e038052cec692348e9c`:
+- canary run `41173692416`: **runner_id=0, steps=[]**;
+- Rust oracle run `41173692310`: **runner_id=0, steps=[]**.
+
+These are **RUNNER_NOT_ADMITTED** and prove neither a defect in the
+tests nor an actionable cause such as exhausted billing minutes. An
+authorized repository/organization administrator must inspect Actions
+eligibility, usage/billing, policies, and runner access. See issue #15.
+
+## Numeric regression seed correctness
+
+For strict IEEE-754 binary64, `1e300 + 1e300 = 2e300` is
+**finite**, so it is *not* a valid rolling-overflow regression.
+`1e308 + 1e308` exceeds the maximum finite double and becomes
+positive infinity. The scalar guest target uses `1.0e308`,
+requires seven colon-delimited `true` assertions, and also checks
+that opposite-sign finite endpoints have mean zero. The mock-only
+runner refusal self-test must use the same **seven** outputs.
+
+The host-model arithmetic observation is **not** evidence that the
+current Oreslang compiler accepts the scientific-notation syntax,
+supports the imported `Result` APIs, or executes a numeric kernel.
+Always require a pinned executed guest receipt for those claims.
+
+## Overlapping draft integration
+
+PR #12 adds independent extreme-mean coverage; PR #13 combines an
+earlier PR #11 head with PR #12; PR #14 stacks compute-batch shape
+and Welford index bounds on PR #13. PR #11 has advanced beyond the
+ancestor in PR #13 and now also includes mean parity and extra
+runtime-gate fixtures. Before merging, resolve this stack on a
+reviewed **single** tree, preserving both PR #14 batch bounds and
+PR #11 late changes. Do not merge the overlapping drafts in parallel,
+and do not infer executed compiler or Rust coverage from mergeability.
