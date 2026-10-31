@@ -162,6 +162,17 @@ place auto;
   val score = returns[return_count - 1].value
     - rolling[rolling_count - 1].value;
 
+  // Finite inputs can overflow when subtracted. A nonfinite signal must
+  // never be promoted to a buy/sell order. Invalidate the one-slot
+  // output explicitly, so a prior valid side cannot leak across batches.
+  // Backend math modes must preserve IEEE finite checks; fast-math is
+  // not certified until compiler-backed negative guest receipts exist.
+  if (score - score) != 0.0 {
+    signal[0].score = 0.0;
+    signal[0].side = 0;
+    return;
+  }
+
   let side = 0;
   if score > 0.0 {
     side = 1;
