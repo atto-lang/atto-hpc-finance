@@ -69,21 +69,21 @@ place auto;
     let local_mean = 0.0;
     let local_m2 = 0.0;
 
-    // The validated exact chunk geometry guarantees start < count.
-    // Do not form start + offset for masked final-chunk lanes: that
-    // unchecked index can overflow at the signed-int boundary.
+    // Exact validated geometry guarantees start < count. A padded final
+    // chunk must not execute virtual lanes: chunk_size can exceed count by
+    // orders of magnitude. Bound the loop to actual available values.
+    // Never form start + offset outside the admitted lane count.
     val start = chunk * chunk_size;
     val remaining = count - start;
-    for int offset = 0; offset < chunk_size; offset++ {
-      if offset < remaining {
-        val index = start + offset;
-        local_count = local_count + 1;
-        val value = values[index].value;
-        val delta = value - local_mean;
-        local_mean = local_mean + delta / local_count;
-        val delta2 = value - local_mean;
-        local_m2 = local_m2 + delta * delta2;
-      }
+    val lane_count = remaining < chunk_size ? remaining : chunk_size;
+    for int offset = 0; offset < lane_count; offset++ {
+      val index = start + offset;
+      local_count = local_count + 1;
+      val value = values[index].value;
+      val delta = value - local_mean;
+      local_mean = local_mean + delta / local_count;
+      val delta2 = value - local_mean;
+      local_m2 = local_m2 + delta * delta2;
     }
 
     chunks[chunk].count = local_count;

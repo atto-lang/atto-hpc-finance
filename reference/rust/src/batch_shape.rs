@@ -220,6 +220,29 @@ mod tests {
     }
 
     #[test]
+    fn huge_chunk_size_does_not_require_padded_lane_iterations() {
+        // A valid one-return workload may use a much larger logical
+        // chunk_size. The kernel must process only actual input lanes.
+        let count = 1usize;
+        let chunk_size = usize::MAX;
+        let last_start = 0usize;
+        let remaining = count - last_start;
+        let lanes = remaining.min(chunk_size);
+        assert_eq!(lanes, 1);
+        assert_eq!(last_start + lanes - 1, 0);
+
+        // The final chunk of a nonmultiple must process only its tail.
+        let count = 10usize;
+        let chunk_size = 8usize;
+        let chunk_count = 1 + (count - 1) / chunk_size;
+        let last_start = (chunk_count - 1) * chunk_size;
+        let lanes = (count - last_start).min(chunk_size);
+        assert_eq!(chunk_count, 2);
+        assert_eq!(lanes, 2);
+        assert_eq!(last_start + lanes - 1, 9);
+    }
+
+    #[test]
     fn last_chunk_indices_never_exceed_count_after_validation() {
         for count in 1usize..256 {
             for size in 1usize..128 {

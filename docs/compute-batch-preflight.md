@@ -33,8 +33,11 @@ a matching independent Rust reference oracle.
   before converting to native allocator/indexing types.
 - The final Welford chunk must compute `start = chunk * chunk_size` only
   after shape preflight. It then computes `remaining = count - start` and
-  forms `index = start + offset` **only when** `offset < remaining`.
-  This avoids the previous masked-lane integer overflow path.
+  iterates only `lane_count = min(remaining, chunk_size)` actual elements,
+  forming `index = start + offset` only for `offset < lane_count`.
+  This avoids masked-lane integer overflow **and** near-unbounded wasted
+  iterations when a valid `chunk_size` is much larger than the remaining
+  input (for example one return and a maximum-size chunk).
 
 For a validated full pipeline, `chunk < chunk_count` implies
 `start < count` and `start + offset < count` for admitted offsets.
