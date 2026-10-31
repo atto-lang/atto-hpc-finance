@@ -269,6 +269,54 @@ pub fn sharpe_ratio(
     ))
 }
 
+/// Fail-closed reference for the Oreslang pre-trade limit-order gate.
+///
+/// This checks the *final* boundary; callers' earlier validation does not
+/// authorize skipping these checks. A market order needs a distinct order kind
+/// and must not be encoded as a zero-price limit order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RiskDecision {
+    pub approved: bool,
+    pub reason_code: u8,
+}
+
+/// Codes: 0 approved; 1 no side; 2 negative quantity; 3 over limit;
+/// 4 invalid numeric input; 5 invalid side; 6 invalid limit price;
+/// 7 zero quantity. Order side is exactly -1 (sell) or 1 (buy).
+pub fn pretrade_risk_gate(
+    side: i64,
+    quantity: f64,
+    limit_price: f64,
+    max_quantity: f64,
+) -> RiskDecision {
+    let reason_code = if !quantity.is_finite()
+        || !limit_price.is_finite()
+        || !max_quantity.is_finite()
+        || max_quantity < 0.0
+    {
+        4
+    } else if side == 0 {
+        1
+    } else if side != 1 && side != -1 {
+        5
+    } else if quantity < 0.0 {
+        2
+    } else if quantity == 0.0 {
+        7
+    } else if limit_price <= 0.0 {
+        6
+    } else if quantity > max_quantity {
+        3
+    } else {
+        0
+    };
+
+    RiskDecision {
+        approved: reason_code == 0,
+        reason_code,
+    }
+}
+
 /// Maximum drawdown over non-negative finite prices.
 ///
 /// Empty input returns `Ok(None)`.
@@ -324,6 +372,45 @@ mod tests {
 
     fn approx_eq(a: f64, b: f64, eps: f64) {
         assert!((a - b).abs() <= eps, "{a} != {b}");
+    }
+
+    #[test]
+    fn risk_gate_rejects_malformed_or_unauthorized_limit_orders() {
+        let cases = [
+            (1, 1.0, 10.0, 2.0, 0),
+            (-1, 1.0, 10.0, 2.0, 0),
+            (0, 1.0, 10.0, 2.0, 1),
+            (2, 1.0, 10.0, 2.0, 5),
+            (-2, 1.0, 10.0, 2.0, 5),
+            (1, -1.0, 10.0, 2.0, 2),
+            (1, 0.0, 10.0, 2.0, 7),
+            (1, -0.0, 10.0, 2.0, 7),
+            (1, 1.0, 0.0, 2.0, 6),
+            (1, 1.0, -1.0, 2.0, 6),
+            (1, 3.0, 10.0, 2.0, 3),
+            (1, 1.0, 10.0, 0.0, 3),
+            (1, 1.0, 10.0, -1.0, 4),
+            (1, 2.0, 10.0, 2.0, 0),
+        ];
+        for (side, quantity, limit_price, max_quantity, reason_code) in cases {
+            let decision = pretrade_risk_gate(side, quantity, limit_price, max_quantity);
+            assert_eq!(decision.reason_code, reason_code);
+            assert_eq!(decision.approved, reason_code == 0);
+        }
+    }
+
+    #[test]
+    fn risk_gate_rejects_all_non_finite_inputs() {
+        for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            for decision in [
+                pretrade_risk_gate(1, bad, 10.0, 2.0),
+                pretrade_risk_gate(1, 1.0, bad, 2.0),
+                pretrade_risk_gate(1, 1.0, 10.0, bad),
+            ] {
+                assert_eq!(decision.reason_code, 4);
+                assert!(!decision.approved);
+            }
+        }
     }
 
     #[test]
