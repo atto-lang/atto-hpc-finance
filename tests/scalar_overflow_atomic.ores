@@ -5,7 +5,8 @@ import module finance_scalar from "../src/scalar.ores";
 // inspection, Rust or host output as execution of this fixture.
 // Expected stdout: true:true:true:true:true:true
 pub routine main() -> void {
-  val float big = 1.0e300;
+  // IEEE-754 f64: 2 * 1e308 overflows; 2 * 1e300 does not.
+  val float big = 1.0e308;
   val float small = 1.0e-300;
 
   // A late (third) computed return overflows after two valid returns.
