@@ -416,6 +416,44 @@ mod tests {
     }
 
     #[test]
+    fn risk_gate_shared_guest_inventory_has_exact_reference_results() {
+        fn field(text: &str) -> f64 {
+            match text {
+                "NaN" => f64::NAN,
+                "+Infinity" => f64::INFINITY,
+                "-Infinity" => f64::NEG_INFINITY,
+                _ => text.parse::<f64>().expect("finite float fixture"),
+            }
+        }
+        let mut seen = std::collections::BTreeSet::new();
+        let mut count = 0;
+        for (index, row) in include_str!("../../../fixtures/risk-gate-v1.tsv")
+            .lines()
+            .enumerate()
+        {
+            if row.trim().is_empty() || row.starts_with('#') {
+                continue;
+            }
+            let parts: Vec<_> = row.split('|').collect();
+            assert_eq!(parts.len(), 7, "malformed fixture on line {}", index + 1);
+            assert!(!parts[0].is_empty(), "missing fixture ID");
+            assert!(seen.insert(parts[0]), "duplicate fixture ID: {}", parts[0]);
+            let side = parts[1].parse::<i64>().expect("fixture side");
+            let quantity = field(parts[2]);
+            let limit_price = field(parts[3]);
+            let max_quantity = field(parts[4]);
+            let approved = parts[5].parse::<bool>().expect("fixture approved");
+            let reason = parts[6].parse::<u8>().expect("fixture reason code");
+            let actual = pretrade_risk_gate(side, quantity, limit_price, max_quantity);
+            assert_eq!(actual.approved, approved, "fixture {}", parts[0]);
+            assert_eq!(actual.reason_code, reason, "fixture {}", parts[0]);
+            assert_eq!(approved, reason == 0, "inconsistent fixture {}", parts[0]);
+            count += 1;
+        }
+        assert_eq!(count, 23, "unreviewed risk-gate inventory change");
+    }
+
+    #[test]
     fn risk_gate_rejects_malformed_or_unauthorized_limit_orders() {
         let cases = [
             (1, 1.0, 10.0, 2.0, 0),
