@@ -21,6 +21,10 @@ pub enum KernelError {
     NonFinite {
         index: usize,
     },
+    /// A finite input produced an invalid non-finite output.
+    NonFiniteResult {
+        index: usize,
+    },
     NonPositivePrice {
         index: usize,
     },
@@ -112,11 +116,19 @@ pub fn simple_returns_into(prices: &[f64], out: &mut [f64]) -> Result<(), Kernel
     expect_output(out.len(), expected)?;
     require_finite(prices)?;
 
-    // Validate every denominator before the first write so an error never
-    // exposes a partially-updated caller buffer.
+    // Validate all denominators before testing results or writing output.
     for i in 1..prices.len() {
         if prices[i - 1] == 0.0 {
             return Err(KernelError::ZeroPreviousPrice { index: i - 1 });
+        }
+    }
+
+    // Finite operands can divide into infinity. No caller buffer is changed
+    // until all output values have passed the numeric domain check.
+    for i in 1..prices.len() {
+        let result = prices[i] / prices[i - 1] - 1.0;
+        if !result.is_finite() {
+            return Err(KernelError::NonFiniteResult { index: i - 1 });
         }
     }
 
@@ -166,9 +178,38 @@ pub fn rolling_mean_into(
     expect_output(out.len(), values.len() - window + 1)?;
     require_finite(values)?;
 
-    let mut sum = values[..window].iter().sum::<f64>();
-    out[0] = sum / window as f64;
+    // Preflight every sliding sum. An overflowing middle/final window must
+    // not leave early output rows written to caller-owned storage.
+    let mut sum: f64 = 0.0;
+    for &value in &values[..window] {
+        sum += value;
+        if !sum.is_finite() {
+            return Err(KernelError::NonFiniteResult { index: 0 });
+        }
+    }
+    if !(sum / window as f64).is_finite() {
+        return Err(KernelError::NonFiniteResult { index: 0 });
+    }
+    for end in window..values.len() {
+        sum += values[end];
+        if !sum.is_finite() {
+            return Err(KernelError::NonFiniteResult {
+                index: end - window + 1,
+            });
+        }
+        sum -= values[end - window];
+        if !sum.is_finite() || !(sum / window as f64).is_finite() {
+            return Err(KernelError::NonFiniteResult {
+                index: end - window + 1,
+            });
+        }
+    }
 
+    sum = 0.0;
+    for &value in &values[..window] {
+        sum += value;
+    }
+    out[0] = sum / window as f64;
     for end in window..values.len() {
         sum += values[end];
         sum -= values[end - window];
@@ -411,6 +452,38 @@ mod tests {
                 assert!(!decision.approved);
             }
         }
+    }
+
+    #[test]
+    fn returns_overflow_rejects_before_mutating_any_output() {
+        let prices = [1.0, 2.0, 1e-300, 1e300];
+        let mut out = [17.0, 18.0, 19.0];
+        assert_eq!(
+            simple_returns_into(&prices, &mut out),
+            Err(KernelError::NonFiniteResult { index: 2 })
+        );
+        assert_eq!(out, [17.0, 18.0, 19.0]);
+    }
+
+    #[test]
+    fn rolling_mean_late_overflow_rejects_before_any_write() {
+        let values = [1.0, 1.0, f64::MAX, f64::MAX];
+        let mut out = [11.0, 12.0, 13.0];
+        assert_eq!(
+            rolling_mean_into(&values, 2, &mut out),
+            Err(KernelError::NonFiniteResult { index: 2 })
+        );
+        assert_eq!(out, [11.0, 12.0, 13.0]);
+    }
+
+    #[test]
+    fn rolling_mean_initial_overflow_rejects_before_any_write() {
+        let mut out = [31.0];
+        assert_eq!(
+            rolling_mean_into(&[f64::MAX, f64::MAX], 2, &mut out),
+            Err(KernelError::NonFiniteResult { index: 0 })
+        );
+        assert_eq!(out, [31.0]);
     }
 
     #[test]
