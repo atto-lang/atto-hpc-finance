@@ -56,3 +56,38 @@ source-free execution path is a prerequisite, not evidence of correctness.
   branch/ruleset protection gate are needed before promoting this draft.
 - No claims of CPU SIMD, accelerator, actor isolation, native ABI, real venue
   access, or hard real-time are permitted from Rust/reference tests alone.
+
+## Source-local exact-head scalar guest runner
+
+The checked-in `scripts/run-scalar-guest-exact-head.sh` is an **opt-in**
+compiler-backed execution gate, not a mock runner. It executes exactly
+`tests/scalar_smoke.ores` and `tests/scalar_overflow_atomic.ores`
+through one reviewed Oreslang CLI and compares byte-exact expected stdout.
+Any compiler stderr, nonzero exit, output mismatch, dirty checkout, source
+identity mismatch, or compiler digest mismatch fails closed.
+
+For an independently reviewed source commit/root tree and compiler binary:
+
+```bash
+# Review and supply these exact values independently; do not derive approval
+# by trusting whichever branch happened to be checked out.
+export EXPECTED_SOURCE_SHA='<reviewed 40-char commit SHA>'
+export EXPECTED_SOURCE_TREE='<reviewed 40-char root tree SHA>'
+export EXPECTED_COMPILER_SHA256='<reviewed compiler binary SHA256>'
+export ORESLANG_BIN='/absolute/path/to/reviewed/oreslang'
+export HPC_EVIDENCE_DIR='/absolute/path/outside/source/for/evidence'
+bash scripts/run-scalar-guest-exact-head.sh
+```
+
+Run in a clean checkout of that exact commit. The script hashes the compiler
+before and after execution and rechecks the checkout identity and cleanliness.
+Its emitted status `EXACT_HEAD_SCALAR_ONLY` deliberately does **not**
+certify the `Region<T>` compute kernels or the 23 risk-gate guest cases:
+those still need a real compiler-backed Region allocator/harness and separate
+exact-head positive/negative receipts.
+
+`scripts/test-scalar-guest-gate.sh` tests **only this script's refusal
+behavior** with a mock executable. The existing Rust workflow runs this
+self-test; its `MOCK_ONLY_NOT_ORESLANG` status is not guest evidence.
+The self-test cannot repair GitHub Actions runner admission failures.
+
