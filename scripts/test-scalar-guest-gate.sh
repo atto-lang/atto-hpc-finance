@@ -12,7 +12,7 @@ cat > "$tmp/bin/mock-cli" <<'CLI'
 #!/bin/sh
 case "$1" in
   */scalar_smoke.ores) printf 'true:true:true:true' ;;
-  */scalar_overflow_atomic.ores) printf 'true:true:true:true:true:true' ;;
+  */scalar_overflow_atomic.ores) printf 'true:true:true:true:true:true:true' ;;
   *) exit 22 ;;
 esac
 CLI
@@ -42,7 +42,7 @@ status=$?
 set -e
 [[ "$status" -eq 65 ]] && grep -q 'compiler digest differs' "$tmp/bad.log"
 # Wrong output must never be certified as actual guest success.
-sed -i 's/true:true:true:true:true:true/false:false:false:false:false:false/' "$tmp/bin/mock-cli"
+sed -i 's/true:true:true:true:true:true:true/false:false:false:false:false:false:false/' "$tmp/bin/mock-cli"
 new_digest="$(sha256sum "$tmp/bin/mock-cli")"; new_digest="${new_digest%% *}"
 set +e
 env "${common[@]}" EXPECTED_COMPILER_SHA256="$new_digest" bash "$gate" >"$tmp/bad.log" 2>&1
