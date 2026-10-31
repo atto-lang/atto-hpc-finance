@@ -26,3 +26,16 @@ Until this is wired into every real compute-dispatch path and compiled at the cl
 - Pin a real compiler binary digest and execute the existing four scalar/shape Oreslang guest fixtures, then separately run a compiled compute+actor harness proving decision generation isolation, real fence ordering, unique transfer, negative borrow checks, and no emitted venue calls for all denied cases.
 - Compare against the 23-case risk inventory and run strict and `-ffast-math`-equivalent backend configurations. If the strict check fails or relaxed code can authorize nonfinite data, **block authorization** rather than silently substitute a host oracle.
 - Before merge: restore source-org runner admission (issue #15), record exact commit/root-tree/runner/job/step evidence, obtain independent review, and protect `main`. Private-source cross-org mirroring requires separate security authorization.
+
+## Host C math-mode probe (not Oreslang)
+
+The standalone C fixture `reference/host/strict_math_probe.c` and
+`reference/host/run_strict_math_probe.sh` compare `clang -O2 -fno-fast-math`
+and `clang -O2 -ffast-math`. On local Clang 17, the strict build reported
+`HOST_STRICT_AUTHORIZED=0` while the fast-math build reported
+`HOST_FAST_MATH_AUTHORIZED=1` for overflowed finite operands.
+The host probe requires strict=0 and reports fast-math output without assuming
+it is portable across compiler versions. It has no venue I/O. This is a
+native **host C** observation, NOT a compiled Oreslang finance guest receipt.
+Promotion still requires actual backend math-mode enforcement and negative
+Oreslang kernel execution evidence.
