@@ -184,10 +184,23 @@ define module finance_scalar
       }
     }
 
+    // IEEE-safe online mean: an opposite-sign finite endpoint pair
+    // can overflow (incoming - result) although their mean is finite.
+    // Use weighted terms for opposite signs, like the Rust oracle.
     let result = 0.0;
+    let samples = 0.0;
     for int i = 0; i < count; i++ {
-      val n = i + 1;
-      result = result + (values[i] - result) / n;
+      samples = samples + 1.0;
+      val incoming = values[i];
+      if (incoming < 0.0 && result >= 0.0) ||
+         (incoming >= 0.0 && result < 0.0) {
+        result = result * ((samples - 1.0) / samples) + incoming / samples;
+      } else {
+        result = result + (incoming - result) / samples;
+      }
+      if !is_finite_value(result) {
+        return Err(kernel_error("non_finite_result", i, 0, 0));
+      }
     }
     return Ok(result);
   }
