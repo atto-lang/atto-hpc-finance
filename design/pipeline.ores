@@ -92,10 +92,15 @@ define class ExecutionActor
   pub receive(batch: ValidatedFinanceWorkBatch) -> void {
     self.record_received();
 
-    // The decision/order regions remain owned by this terminal stage. A venue
-    // implementation must inspect the risk decision before external I/O.
-    // Keeping the terminal actor in this bootstrap proves the ownership and
-    // mailbox topology without granting ambient network authority.
+    // Fail closed independently of upstream actors: a rejected or missing
+    // decision must never open a venue capability. At present this is a
+    // design-only actor with NO network adapter or executable evidence.
+    if !batch.decisions[0].approved {
+      return;
+    }
+    // A real venue adapter must *also* validate final order fields,
+    // generation and tenant capability before permitted I/O. Merely
+    // receiving this envelope never authorizes external execution.
     return;
   }
 
@@ -117,6 +122,11 @@ define class RiskActor
       batch.max_quantity
     );
 
+    // Risk rejection ends the pipeline; never forward a denied intent
+    // to the execution stage (which independently checks the decision).
+    if !batch.decisions[0].approved {
+      return;
+    }
     self.execution.send(rt take batch);
     return;
   }
