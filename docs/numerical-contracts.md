@@ -13,6 +13,30 @@ These rules are the baseline for finance kernels. Optimized Oreslang, SIMD, nati
 
 The default is to fail fast rather than let one invalid market value poison a long vector silently.
 
+## Failure-atomic scalar outputs and overflow
+
+A finite input is **not** sufficient evidence that an arithmetic result is
+finite. For instance, dividing finite prices `1e300 / 1e-300` yields an
+infinite simple return, and a rolling sum can overflow in a late window.
+
+- `simple_returns_into` and `rolling_mean_into` must preflight all
+  computed values before mutating any caller-owned output element.
+- Output-domain failure uses `KernelError.code = "non_finite_result"`,
+  with `index` identifying the first invalid **output** slot. Existing
+  validation failures retain their own names and input indices.
+- A failing call must preserve the caller's entire output buffer, even if
+  earlier windows/returns were valid.
+- The deterministic scalar preflight and publication passes must use the
+  same arithmetic evaluation order; future fused/SIMD/GPU implementations
+  must supply a separately verified atomic-publication strategy.
+- An optimized backend must not compile finite-input validation using
+  unsafe fast-math assumptions such as `x - x == 0` for NaN/infinity.
+  Until a backend supplies an explicitly tested IEEE finite predicate,
+  finite checks are **not** certified under relaxed math transformations.
+
+Rust oracle tests and the Oreslang scalar source include this policy, but
+an exact pinned compiler guest run is still required for parity claims.
+
 ## Output shape
 
 Allocation-free `*_into` kernels receive caller-owned output buffers.
@@ -103,7 +127,7 @@ checked. An unapproved decision must never be passed to venue I/O.
   numeric, no side, invalid side, negative quantity, zero quantity,
   invalid limit price, exceeding max quantity.
 
-The Rust `pretrade_risk_gate` reference has adversarial unit tests for
+The shared acceptance inventory is `fixtures/risk-gate-v1.tsv` (23 reviewed\npositive/negative vectors, with explicit `NaN` and infinity symbols). The\nRust oracle checks the inventory without third-party dependencies. A guest\nadapter must parse these symbols explicitly and compare every decision and\nreason code; a source-only inventory check is not runtime proof.\n\nThe Rust `pretrade_risk_gate` reference has adversarial unit tests for
 this policy. **Rust-only tests do not establish that the Oreslang compute
 kernel ran**, nor do they validate exchange integration. A future exact-head
 guest test must compare the Oreslang decision/reason codes against these
