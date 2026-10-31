@@ -262,9 +262,16 @@ pub fn sample_variance(values: &[f64]) -> Result<f64, KernelError> {
         mean += delta / count as f64;
         let delta2 = x - mean;
         m2 += delta * delta2;
+        if !mean.is_finite() || !m2.is_finite() {
+            return Err(KernelError::NonFiniteResult { index: 0 });
+        }
     }
 
-    Ok(m2 / (count - 1) as f64)
+    let variance = m2 / (count - 1) as f64;
+    if !variance.is_finite() {
+        return Err(KernelError::NonFiniteResult { index: 0 });
+    }
+    Ok(variance)
 }
 
 /// Annualized arithmetic Sharpe ratio.
@@ -586,6 +593,19 @@ mod tests {
         assert_eq!(mean(&[f64::MAX, f64::MAX]), Ok(f64::MAX));
         assert_eq!(mean(&[-f64::MAX, -f64::MAX]), Ok(-f64::MAX));
         approx_eq(mean(&[1.0, 2.0, 3.0]).unwrap(), 2.0, 1e-12);
+    }
+
+    #[test]
+    fn sample_variance_rejects_nonfinite_computed_moments() {
+        // Finite extreme endpoints can overflow the Welford delta/M2.
+        assert_eq!(
+            sample_variance(&[f64::MAX, -f64::MAX]),
+            Err(KernelError::NonFiniteResult { index: 0 })
+        );
+        assert_eq!(
+            sample_variance(&[f64::MAX, f64::MAX]),
+            Ok(0.0)
+        );
     }
 
     #[test]
