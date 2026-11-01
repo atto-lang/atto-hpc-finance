@@ -174,3 +174,25 @@ No private-source cross-organization mirror is authorized by this change.
 The Oreslang 180-decision finite risk matrix also tests its eight exact
 reason-code totals: 2, 24, 12, 6, 60, 48, 16, 12. It must execute in the
 actual Oreslang guest to count as compiler-backed evidence.
+
+## Further Oreslang-language regression coverage (2026-11-01)
+
+Four additional source-local pure Oreslang tests extend the previous 7-guest/68-check suite:
+
+| Guest source | Added booleans | Scope |
+| --- | ---: | --- |
+| `tests/batch_shape_adversarial.ores` | 37 | 7 valid / 30 rejected geometry and physical-capacity claims |
+| `tests/scalar_exact_values.ores` | 24 | Exact returns, rolling, mean, sample variance |
+| `tests/scalar_failure_atomicity_matrix.ores` | 19 | Late errors, nonfinite input and untouched caller output buffers |
+| `tests/risk_precedence_matrix.ores` | 34 | Contradictory invalid order fields, nonfinite limits, signed zero and failure precedence |
+
+**Current total: eleven `.ores` guest programs, 182 expected boolean assertions.**
+The separately authored 180-case risk property program remains in the total;
+its individual risk decisions are not counted as extra boolean assertions.
+Four new source-marker inventories are checked by a new Rust *source-contract*
+module. An independent JavaScript host-model check matched all 37 shape and
+34 risk expected outcomes, but **neither host check executes Oreslang**.
+Until a reviewed Oreslang compiler runs the immutable head with verified
+stdout/stderr/fixture and compiler receipts, all 114 new checks are
+`AUTHORED_ONLY`. Prior 31/31 Rust passes belong to an older tree. GitHub
+runs with zero steps continue to be `RUNNER_NOT_ADMITTED`, not test failures.
