@@ -121,6 +121,31 @@ mod tests {
         }
     }
 
+
+    #[test]
+    fn oreslang_guest_has_exact_shared_inventory_once_in_order() {
+        // STATIC linkage check only: Rust does not compile or execute Oreslang.
+        let inventory: Vec<_> = include_str!("../../../fixtures/risk-gate-v1.tsv")
+            .lines()
+            .filter(|line| !line.is_empty() && !line.starts_with('#'))
+            .map(|line| line.split('|').next().expect("fixture ID"))
+            .collect();
+        let guest = include_str!("../../../tests/risk_gate_scalar_23.ores");
+        let guest_ids: Vec<_> = guest
+            .lines()
+            .filter_map(|line| line.trim().strip_prefix("// fixture:"))
+            .collect();
+        assert_eq!(guest_ids, inventory, "Oreslang guest does not match TSV inventory");
+        assert_eq!(guest_ids.len(), 23);
+        assert_eq!(guest.matches("stdio.stdout.write(check(").count(), 23);
+        assert!(guest.contains(
+            "import module finance_risk_scalar from \"../src/risk_scalar.ores\";"
+        ));
+        assert!(include_str!("../../../src/risk_scalar.ores").contains(
+            "pub fnc limit_order("
+        ));
+    }
+
     #[test]
     fn risk_is_recomputed_from_order_not_from_caller_approval() {
         let mut venue = RecordingMockVenue::default();
