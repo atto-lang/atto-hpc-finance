@@ -10,12 +10,16 @@ printf 'placeholder\n' > "$tmp/source/tests/scalar_smoke.ores"
 printf 'placeholder\n' > "$tmp/source/tests/scalar_overflow_atomic.ores"
 printf 'placeholder\n' > "$tmp/source/tests/mean_extremes.ores"
 printf 'placeholder\n' > "$tmp/source/tests/batch_shape.ores"
+printf 'placeholder\n' > "$tmp/source/tests/scalar_error_matrix.ores"
+printf 'placeholder\n' > "$tmp/source/tests/risk_gate_scalar_23.ores"
 cat > "$tmp/bin/mock-cli" <<'CLI'
 #!/bin/sh
 case "$1" in
   */scalar_smoke.ores) printf 'true:true:true:true' ;;
   */scalar_overflow_atomic.ores) printf 'true:true:true:true:true:true:true' ;;
   */mean_extremes.ores|*/batch_shape.ores) printf 'true:true:true:true:true' ;;
+  */scalar_error_matrix.ores) printf 'true:true:true:true:true:true:true:true:true:true:true:true' ;;
+  */risk_gate_scalar_23.ores) printf 'true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true' ;;
   *) exit 22 ;;
 esac
 CLI
@@ -33,15 +37,17 @@ grep -qx 'HPC_GUEST_CASE=PASS scalar_smoke' "$tmp/pass.log"
 grep -qx 'HPC_GUEST_CASE=PASS scalar_overflow_atomic' "$tmp/pass.log"
 grep -qx 'HPC_GUEST_CASE=PASS mean_extremes' "$tmp/pass.log"
 grep -qx 'HPC_GUEST_CASE=PASS batch_shape' "$tmp/pass.log"
+grep -qx 'HPC_GUEST_CASE=PASS scalar_error_matrix' "$tmp/pass.log"
+grep -qx 'HPC_GUEST_CASE=PASS risk_gate_scalar_23' "$tmp/pass.log"
 grep -qx 'HPC_GUEST_STATUS=EXACT_HEAD_SCALAR_ONLY' "$tmp/pass.log"
 evidence_path="$(sed -n 's/^HPC_GUEST_EVIDENCE_DIR=//p' "$tmp/pass.log")"
 [[ -f "$evidence_path/fixture-receipts.tsv" ]]
-[[ "$(wc -l < "$evidence_path/fixture-receipts.tsv")" -eq 5 ]]
+[[ "$(wc -l < "$evidence_path/fixture-receipts.tsv")" -eq 7 ]]
 # Every fixture receipt must carry a Git blob and three SHA-256 hashes.
 awk -F '\t' 'NR > 1 {
   if (NF != 5 || length($2) != 40 || length($3) != 64 || length($4) != 64 || length($5) != 64) exit 1;
   checked++;
-} END { if (checked != 4) exit 1; }' "$evidence_path/fixture-receipts.tsv"
+} END { if (checked != 6) exit 1; }' "$evidence_path/fixture-receipts.tsv"
 receipt_sha="$(sha256sum "$evidence_path/fixture-receipts.tsv")"; receipt_sha="${receipt_sha%% *}"
 grep -qx "HPC_GUEST_RECEIPT_SHA256=$receipt_sha" "$tmp/pass.log"
 # A malformed identity pin must fail before any mock execution.
