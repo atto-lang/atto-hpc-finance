@@ -5,6 +5,8 @@
 
 pub mod batch_shape;
 pub mod risk_dispatch;
+#[cfg(test)]
+mod guest_contracts;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum KernelError {
