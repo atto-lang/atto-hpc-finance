@@ -13,8 +13,9 @@ acceptance matrix and exact-head execution recipe, not a passing test report.
 | `tests/batch_shape.ores` | 5 | Logical batch-shape admission, not runtime capacities |
 | `tests/scalar_error_matrix.ores` | 12 | Invalid counts/lengths/windows/denominators, nonfinite input, untouched buffers |
 | `tests/risk_gate_scalar_23.ores` | 23 | All unique rows from `fixtures/risk-gate-v1.tsv` |
+| `tests/risk_gate_cross_product.ores` | 4 | 180 Oreslang risk decisions over sides/quantities/prices/ceilings |
 
-**Total: six Oreslang guest programs, 56 expected boolean assertions.**
+**Total: seven Oreslang guest programs, 60 expected boolean assertions, plus 180 in-guest risk evaluations.**
 
 The new `src/risk_scalar.ores` independently implements the exact risk
 decision/precedence contract **in pure Oreslang**. The 23-case guest uses
@@ -24,7 +25,7 @@ host oracle and the production `Region<T>` compute kernel.
 
 The Rust test checks that every TSV case ID occurs exactly once and in order
 in the Oreslang guest. **A Rust source-contract pass is not execution of an
-Oreslang program**. The runtime must evaluate all 56 checks against the real
+Oreslang program**. The runtime must evaluate all 60 checks against the real
 compiler and emit byte-identical expected output.
 
 ## Trusted, exact-head guest run
@@ -72,3 +73,17 @@ Current diagnostic: prior exact-head finance Rust success belongs to
 `c274ed3ac2e399b850d8ea7a9370c38f70efe44c`, not newer commits.
 Later source-free and Rust jobs returned `steps=[]` and must be marked
 `RUNNER_NOT_ADMITTED`; the cause remains unproven.
+
+## Independent upstream GraalVM compiler characterization
+
+The separately scoped [oreslang-source.java PR #2394](https://github.com/ores-truffle-oreslang/oreslang-source.java/pull/2394)
+adds two Java JUnit methods that **execute independently authored Oreslang
+source via the actual GraalVM polyglot runtime**: strict IEEE-754 overflow,
+NaN and weighted extreme means. They do **not** contain or mirror the private
+finance repository's source bytes. Passing them would characterize the
+upstream Oreslang compiler at that compiler PR SHA, **not** certify the
+finance branch or its import/linker, `Region<T>`, or actor execution.
+
+As inspected, the upstream targeted GitHub workflow has `steps=null` and
+is classified `RUNNER_NOT_ADMITTED`, so there is **no executed compiler
+result yet**. Keep the two evidence streams independent.
