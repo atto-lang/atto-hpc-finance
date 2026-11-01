@@ -14,8 +14,12 @@ acceptance matrix and exact-head execution recipe, not a passing test report.
 | `tests/scalar_error_matrix.ores` | 12 | Invalid counts/lengths/windows/denominators, nonfinite input, untouched buffers |
 | `tests/risk_gate_scalar_23.ores` | 23 | All unique rows from `fixtures/risk-gate-v1.tsv` |
 | `tests/risk_gate_cross_product.ores` | 12 | 180 Oreslang decisions, full eight-reason distribution |
+| `tests/batch_shape_adversarial.ores` | 37 | Seven accepted and 30 rejected shape/capacity combinations, including huge logical geometry |
+| `tests/scalar_exact_values.ores` | 24 | Exact returns, rolling means, online means, and sample variances |
+| `tests/scalar_failure_atomicity_matrix.ores` | 19 | Late faults, sentinels unchanged, negative/NaN/overflow boundaries |
+| `tests/risk_precedence_matrix.ores` | 34 | Multi-fault risk reason precedence, signed zero, NaN and infinities |
 
-**Total: seven Oreslang guest programs, 68 expected boolean assertions, plus 180 in-guest risk evaluations.**
+**Total: eleven Oreslang guest programs, 182 expected boolean assertions, plus 180 in-guest risk evaluations.**
 
 The new `src/risk_scalar.ores` independently implements the exact risk
 decision/precedence contract **in pure Oreslang**. The 23-case guest uses
@@ -23,9 +27,9 @@ overflowed finite inputs to construct +/-Infinity and their difference
 to construct NaN under strict IEEE-754. This is separate from both the Rust
 host oracle and the production `Region<T>` compute kernel.
 
-The Rust test checks that every TSV case ID occurs exactly once and in order
+Rust source-contract tests check all four new case inventories for uniqueness, exact expected counts, and consistency with the guest runner and mock-only admission suite. The existing Rust test checks that every TSV case ID occurs exactly once and in order
 in the Oreslang guest. **A Rust source-contract pass is not execution of an
-Oreslang program**. The runtime must evaluate all 68 checks against the real
+Oreslang program**. The runtime must evaluate all 182 checks against the real
 compiler and emit byte-identical expected output.
 
 ## Trusted, exact-head guest run
@@ -104,9 +108,20 @@ repository/environment variables: `HPC_REVIEWED_SOURCE_SHA`,
 `HPC_REVIEWED_COMPILER_PATH`. Do not configure, approve or dispatch this
 workflow solely based on a PR author's request. It refuses incomplete pins,
 checks the source ref, checks out **only this same source repository** using
-read-only checkout, and executes the seven Oreslang guests against the
+read-only checkout, and executes the eleven Oreslang guests against the
 approved CLI. No private source mirror or cross-org token is involved.
 
 The workflow **has not been dispatched** and no authorized native compiler
 binary or independent environment review has been established. Workflow
 presence and mock-only Bash tests must never be described as guest evidence.
+
+## November 1 source-only regression expansion
+
+Four additional **pure Oreslang guest programs** contribute **114 new boolean
+assertions** (37 batch admission, 24 numeric exact-value, 19 failure-atomicity,
+34 risk-precedence). The pinned runner and its mock-only self-test cover all
+**eleven** source fixtures (182 expected booleans). The batch geometry cases
+are shape-only, not physical Region allocation. A dedicated Rust test checks
+case-marker uniqueness and receipt/script consistency; it does not run guest
+code. Do not report these as executed unless the approved compiler completes
+all eleven exact-blob fixtures at one immutable source head.
