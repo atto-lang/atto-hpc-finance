@@ -115,12 +115,48 @@ mod tests {
     #[test]
     fn rejects_invalid_return_rolling_window_and_chunk_geometry() {
         let cases = [
-            (BatchShape { return_count: 9, ..valid() }, BatchShapeError::ReturnCount),
-            (BatchShape { window: 0, ..valid() }, BatchShapeError::InvalidWindow),
-            (BatchShape { window: 9, ..valid() }, BatchShapeError::InvalidWindow),
-            (BatchShape { rolling_count: 7, ..valid() }, BatchShapeError::RollingCount),
-            (BatchShape { chunk_size: 0, ..valid() }, BatchShapeError::InvalidChunkSize),
-            (BatchShape { chunk_count: 2, ..valid() }, BatchShapeError::ChunkCount),
+            (
+                BatchShape {
+                    return_count: 9,
+                    ..valid()
+                },
+                BatchShapeError::ReturnCount,
+            ),
+            (
+                BatchShape {
+                    window: 0,
+                    ..valid()
+                },
+                BatchShapeError::InvalidWindow,
+            ),
+            (
+                BatchShape {
+                    window: 9,
+                    ..valid()
+                },
+                BatchShapeError::InvalidWindow,
+            ),
+            (
+                BatchShape {
+                    rolling_count: 7,
+                    ..valid()
+                },
+                BatchShapeError::RollingCount,
+            ),
+            (
+                BatchShape {
+                    chunk_size: 0,
+                    ..valid()
+                },
+                BatchShapeError::InvalidChunkSize,
+            ),
+            (
+                BatchShape {
+                    chunk_count: 2,
+                    ..valid()
+                },
+                BatchShapeError::ChunkCount,
+            ),
         ];
         for (shape, expected) in cases {
             assert_eq!(validate_batch_shape(shape), Err(expected));
@@ -130,14 +166,62 @@ mod tests {
     #[test]
     fn rejects_malformed_physical_extents_before_compute() {
         let cases = [
-            (BatchShape { bars_capacity: 8, ..valid() }, "bars"),
-            (BatchShape { returns_capacity: 7, ..valid() }, "returns"),
-            (BatchShape { rolling_capacity: 5, ..valid() }, "rolling"),
-            (BatchShape { chunks_capacity: 2, ..valid() }, "chunks"),
-            (BatchShape { total_capacity: 0, ..valid() }, "total"),
-            (BatchShape { signal_capacity: 2, ..valid() }, "signal"),
-            (BatchShape { order_capacity: 0, ..valid() }, "order"),
-            (BatchShape { decision_capacity: 2, ..valid() }, "decision"),
+            (
+                BatchShape {
+                    bars_capacity: 8,
+                    ..valid()
+                },
+                "bars",
+            ),
+            (
+                BatchShape {
+                    returns_capacity: 7,
+                    ..valid()
+                },
+                "returns",
+            ),
+            (
+                BatchShape {
+                    rolling_capacity: 5,
+                    ..valid()
+                },
+                "rolling",
+            ),
+            (
+                BatchShape {
+                    chunks_capacity: 2,
+                    ..valid()
+                },
+                "chunks",
+            ),
+            (
+                BatchShape {
+                    total_capacity: 0,
+                    ..valid()
+                },
+                "total",
+            ),
+            (
+                BatchShape {
+                    signal_capacity: 2,
+                    ..valid()
+                },
+                "signal",
+            ),
+            (
+                BatchShape {
+                    order_capacity: 0,
+                    ..valid()
+                },
+                "order",
+            ),
+            (
+                BatchShape {
+                    decision_capacity: 2,
+                    ..valid()
+                },
+                "decision",
+            ),
         ];
         for (shape, name) in cases {
             assert_eq!(
