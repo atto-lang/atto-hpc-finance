@@ -1,0 +1,90 @@
+import module finance_scalar from "../src/scalar.ores";
+
+// Independent exact-value Oreslang numerics: no Rust host proxy is sufficient.
+// Inputs use exact binary fractions and integers to avoid tolerance ambiguity.
+// Expected stdout: 24 colon-delimited true values (no newline).
+pub routine main() -> void {
+  let Array<float> returns_b = arr[0.0, 0.0];
+  let Array<float> returns_c = arr[0.0, 0.0];
+  let Array<float> returns_d = arr[0.0];
+  let Array<float> returns_e = arr[0.0];
+  let Array<float> rolling_a = arr[0.0, 0.0, 0.0];
+  let Array<float> rolling_b = arr[0.0, 0.0, 0.0];
+  let Array<float> rolling_c = arr[0.0];
+  let Array<float> rolling_d = arr[0.0, 0.0, 0.0];
+  let Array<float> rolling_e = arr[0.0, 0.0, 0.0];
+  let Array<float> rolling_f = arr[0.0, 0.0];
+
+  // case:returns_half_double
+  stdio.stdout.write(finance_scalar.simple_returns_into(arr[4.0, 2.0, 4.0], returns_b, 3).is_ok() && returns_b[0] == -0.5 && returns_b[1] == 1.0);
+  stdio.stdout.write(":");
+  // case:returns_flat
+  stdio.stdout.write(finance_scalar.simple_returns_into(arr[4.0, 4.0, 4.0], returns_c, 3).is_ok() && returns_c[0] == 0.0 && returns_c[1] == 0.0);
+  stdio.stdout.write(":");
+  // case:returns_negative_prices
+  stdio.stdout.write(finance_scalar.simple_returns_into(arr[-2.0, -1.0], returns_d, 2).is_ok() && returns_d[0] == -0.5);
+  stdio.stdout.write(":");
+  // case:returns_odd_ratio
+  stdio.stdout.write(finance_scalar.simple_returns_into(arr[8.0, 2.0], returns_e, 2).is_ok() && returns_e[0] == -0.75);
+  stdio.stdout.write(":");
+  // case:rolling_window_one
+  stdio.stdout.write(finance_scalar.rolling_mean_into(arr[1.0, 2.0, 3.0], rolling_a, 3, 1).is_ok() && rolling_a[0] == 1.0 && rolling_a[1] == 2.0 && rolling_a[2] == 3.0);
+  stdio.stdout.write(":");
+  // case:rolling_window_two
+  stdio.stdout.write(finance_scalar.rolling_mean_into(arr[1.0, 2.0, 3.0, 4.0], rolling_b, 4, 2).is_ok() && rolling_b[0] == 1.5 && rolling_b[1] == 2.5 && rolling_b[2] == 3.5);
+  stdio.stdout.write(":");
+  // case:rolling_window_full
+  stdio.stdout.write(finance_scalar.rolling_mean_into(arr[1.0, 2.0, 3.0, 4.0], rolling_c, 4, 4).is_ok() && rolling_c[0] == 2.5);
+  stdio.stdout.write(":");
+  // case:rolling_alternating
+  stdio.stdout.write(finance_scalar.rolling_mean_into(arr[1.0, -1.0, 1.0, -1.0], rolling_d, 4, 2).is_ok() && rolling_d[0] == 0.0 && rolling_d[1] == 0.0 && rolling_d[2] == 0.0);
+  stdio.stdout.write(":");
+  // case:rolling_window_three
+  stdio.stdout.write(finance_scalar.rolling_mean_into(arr[1.0, 2.0, 3.0, 4.0, 5.0], rolling_e, 5, 3).is_ok() && rolling_e[0] == 2.0 && rolling_e[1] == 3.0 && rolling_e[2] == 4.0);
+  stdio.stdout.write(":");
+  // case:rolling_negative
+  stdio.stdout.write(finance_scalar.rolling_mean_into(arr[-2.0, -4.0, -6.0], rolling_f, 3, 2).is_ok() && rolling_f[0] == -3.0 && rolling_f[1] == -5.0);
+  stdio.stdout.write(":");
+  // case:mean_ascending
+  stdio.stdout.write(finance_scalar.mean(arr[2.0, 4.0, 6.0], 3).unwrap() == 4.0);
+  stdio.stdout.write(":");
+  // case:mean_descending
+  stdio.stdout.write(finance_scalar.mean(arr[6.0, 4.0, 2.0], 3).unwrap() == 4.0);
+  stdio.stdout.write(":");
+  // case:mean_negative
+  stdio.stdout.write(finance_scalar.mean(arr[-2.0, -4.0, -6.0], 3).unwrap() == -4.0);
+  stdio.stdout.write(":");
+  // case:mean_single
+  stdio.stdout.write(finance_scalar.mean(arr[5.0], 1).unwrap() == 5.0);
+  stdio.stdout.write(":");
+  // case:mean_zero
+  stdio.stdout.write(finance_scalar.mean(arr[0.0, 0.0], 2).unwrap() == 0.0);
+  stdio.stdout.write(":");
+  // case:mean_pair
+  stdio.stdout.write(finance_scalar.mean(arr[1.0, 3.0], 2).unwrap() == 2.0);
+  stdio.stdout.write(":");
+  // case:mean_cancel
+  stdio.stdout.write(finance_scalar.mean(arr[1.0, -1.0], 2).unwrap() == 0.0);
+  stdio.stdout.write(":");
+  // case:mean_constant
+  stdio.stdout.write(finance_scalar.mean(arr[4.0, 4.0, 4.0, 4.0], 4).unwrap() == 4.0);
+  stdio.stdout.write(":");
+  // case:variance_three
+  stdio.stdout.write(finance_scalar.sample_variance(arr[1.0, 2.0, 3.0], 3).unwrap() == 1.0);
+  stdio.stdout.write(":");
+  // case:variance_constant
+  stdio.stdout.write(finance_scalar.sample_variance(arr[2.0, 2.0, 2.0], 3).unwrap() == 0.0);
+  stdio.stdout.write(":");
+  // case:variance_pair
+  stdio.stdout.write(finance_scalar.sample_variance(arr[1.0, 3.0], 2).unwrap() == 2.0);
+  stdio.stdout.write(":");
+  // case:variance_half
+  stdio.stdout.write(finance_scalar.sample_variance(arr[0.0, 1.0], 2).unwrap() == 0.5);
+  stdio.stdout.write(":");
+  // case:variance_signed
+  stdio.stdout.write(finance_scalar.sample_variance(arr[-1.0, 1.0], 2).unwrap() == 2.0);
+  stdio.stdout.write(":");
+  // case:variance_equal_pair
+  stdio.stdout.write(finance_scalar.sample_variance(arr[4.0, 4.0], 2).unwrap() == 0.0);
+  return;
+}
