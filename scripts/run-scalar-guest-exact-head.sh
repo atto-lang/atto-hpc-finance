@@ -30,7 +30,7 @@ case "$evidence_root/" in "$root/"*) fail "evidence inside source checkout" ;; e
 out="$(mktemp -d "$evidence_root/hpc-guest.XXXXXXXX")"
 receipt="$out/fixture-receipts.tsv"
 printf 'fixture\tgit_blob\texpected_sha256\tstdout_sha256\tstderr_sha256\n' > "$receipt"
-for test in scalar_smoke scalar_overflow_atomic mean_extremes batch_shape scalar_error_matrix risk_gate_scalar_23; do
+for test in scalar_smoke scalar_overflow_atomic mean_extremes batch_shape scalar_error_matrix risk_gate_scalar_23 risk_gate_cross_product; do
   stdout="$out/$test.stdout"
   stderr="$out/$test.stderr"
   case "$test" in
@@ -39,6 +39,7 @@ for test in scalar_smoke scalar_overflow_atomic mean_extremes batch_shape scalar
     mean_extremes|batch_shape) expected='true:true:true:true:true' ;;
     scalar_error_matrix) expected='true:true:true:true:true:true:true:true:true:true:true:true' ;;
     risk_gate_scalar_23) expected='true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true' ;;
+    risk_gate_cross_product) expected='true:true:true:true' ;;
   esac
   fixture="$root/tests/$test.ores"
   [[ -f "$fixture" && ! -L "$fixture" ]] || fail "missing or symlinked guest fixture $test"
