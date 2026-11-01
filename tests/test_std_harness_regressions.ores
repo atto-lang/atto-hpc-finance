@@ -1,0 +1,16 @@
+import class TestCase, TestSuite, TestOptions, TestOutcome, RunSummary from "std/testing";
+import fnc expect_true, expect_false, expect_equal_int, expect_equal_string, run_suite, require_success, fail from "std/testing";
+import module finance_scalar from "../src/scalar.ores";
+fnc empty_mean_is_error_not_nan(): TestOutcome {
+  return expect_true(finance_scalar.mean(arr[], 0).is_err(),
+    "empty mean must fail rather than emit a NaN");
+}
+pub routine main(): void {
+  val TestSuite suite = new TestSuite("finance-scalar", arr[
+    new TestCase("empty_mean_is_error_not_nan", empty_mean_is_error_not_nan, false, "")
+  ]);
+  val TestOptions options = new TestOptions("", false, true);
+  val RunSummary summary = run_suite(rt borrow suite, rt borrow options);
+  require_success(rt borrow summary);
+  return;
+}
