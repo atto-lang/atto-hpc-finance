@@ -3,6 +3,8 @@
 //! The public Oreslang library should match these semantics, but it does not
 //! need to mirror this Rust API.
 
+pub mod batch_shape;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum KernelError {
     OutputLength {
@@ -707,4 +709,70 @@ mod tests {
             })
         );
     }
+
+    #[test]
+    fn risk_priority_rejects_invalid_numeric_before_other_failures() {
+        assert_eq!(pretrade_risk_gate(2, f64::NAN, -1.0, -1.0).reason_code, 4);
+        assert_eq!(pretrade_risk_gate(2, 0.0, -1.0, 1.0).reason_code, 5);
+        assert_eq!(pretrade_risk_gate(1, -1.0, -1.0, 1.0).reason_code, 2);
+        assert_eq!(pretrade_risk_gate(1, 0.0, -1.0, 1.0).reason_code, 7);
+        assert_eq!(pretrade_risk_gate(1, 3.0, 0.0, 2.0).reason_code, 6);
+        assert_eq!(pretrade_risk_gate(1, 3.0, 10.0, 2.0).reason_code, 3);
+    }
+
+    #[test]
+    fn rust_model_mock_venue_only_receives_approved_risk_cases() {
+        struct MockVenue {
+            calls: usize,
+        }
+        fn dispatch(decision: RiskDecision, venue: &mut MockVenue) {
+            if decision.approved {
+                venue.calls += 1;
+            }
+        }
+        fn field(text: &str) -> f64 {
+            match text {
+                "NaN" => f64::NAN,
+                "+Infinity" => f64::INFINITY,
+                "-Infinity" => f64::NEG_INFINITY,
+                _ => text.parse::<f64>().expect("fixture float"),
+            }
+        }
+        let mut venue = MockVenue { calls: 0 };
+        let mut rows = 0usize;
+        let mut rejected = 0usize;
+        for row in include_str!("../../../fixtures/risk-gate-v1.tsv").lines() {
+            if row.is_empty() || row.starts_with('#') {
+                continue;
+            }
+            let parts: Vec<_> = row.split('|').collect();
+            assert_eq!(parts.len(), 7);
+            let decision = pretrade_risk_gate(
+                parts[1].parse().expect("side"),
+                field(parts[2]),
+                field(parts[3]),
+                field(parts[4]),
+            );
+            let before = venue.calls;
+            dispatch(decision, &mut venue);
+            if !decision.approved {
+                assert_eq!(venue.calls, before, "rejected case reached venue: {}", parts[0]);
+                rejected += 1;
+            }
+            rows += 1;
+        }
+        assert_eq!(rows, 23);
+        assert_eq!(rejected, 20);
+        assert_eq!(venue.calls, 3);
+    }
+
+    #[test]
+    fn finite_mean_extreme_fixture_orders_match_oracle() {
+        assert_eq!(mean(&[1.0e308, -1.0e308]), Ok(0.0));
+        assert_eq!(mean(&[-1.0e308, 1.0e308]), Ok(0.0));
+        assert_eq!(mean(&[1.0e308, 1.0e308]), Ok(1.0e308));
+        assert_eq!(mean(&[-1.0e308, -1.0e308]), Ok(-1.0e308));
+        assert_eq!(mean(&[1.0, 2.0, 3.0]), Ok(2.0));
+    }
+
 }
