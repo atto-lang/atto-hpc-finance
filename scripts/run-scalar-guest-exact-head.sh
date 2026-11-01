@@ -26,12 +26,13 @@ mkdir -p -- "$HPC_EVIDENCE_DIR"
 evidence_root="$(cd -- "$HPC_EVIDENCE_DIR" && pwd -P)"
 case "$evidence_root/" in "$root/"*) fail "evidence inside source checkout" ;; esac
 out="$(mktemp -d "$evidence_root/hpc-guest.XXXXXXXX")"
-for test in scalar_smoke scalar_overflow_atomic; do
+for test in scalar_smoke scalar_overflow_atomic mean_extremes batch_shape; do
   stdout="$out/$test.stdout"
   stderr="$out/$test.stderr"
   case "$test" in
     scalar_smoke) expected='true:true:true:true' ;;
     scalar_overflow_atomic) expected='true:true:true:true:true:true:true' ;;
+    mean_extremes|batch_shape) expected='true:true:true:true:true' ;;
   esac
   printf '%s' "$expected" > "$out/$test.expected"
   if (cd "$root" && "$ORESLANG_BIN" "$root/tests/$test.ores") >"$stdout" 2>"$stderr"; then
