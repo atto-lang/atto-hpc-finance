@@ -61,7 +61,8 @@ source-free execution path is a prerequisite, not evidence of correctness.
 
 The checked-in `scripts/run-scalar-guest-exact-head.sh` is an **opt-in**
 compiler-backed execution gate, not a mock runner. It executes exactly
-`tests/scalar_smoke.ores` and `tests/scalar_overflow_atomic.ores`
+`tests/scalar_smoke.ores`, `tests/scalar_overflow_atomic.ores`,
+`tests/mean_extremes.ores`, and `tests/batch_shape.ores`
 through one reviewed Oreslang CLI and compares byte-exact expected stdout.
 Any compiler stderr, nonzero exit, output mismatch, dirty checkout, source
 identity mismatch, or compiler digest mismatch fails closed.
@@ -132,3 +133,16 @@ runtime-gate fixtures. Before merging, resolve this stack on a
 reviewed **single** tree, preserving both PR #14 batch bounds and
 PR #11 late changes. Do not merge the overlapping drafts in parallel,
 and do not infer executed compiler or Rust coverage from mergeability.
+
+## Unified branch evidence note
+
+The integration branch preserves current PR #11's later mean-result and
+failure-atomicity guards, plus #12's independent mean fixture and #14's
+batch-shape guards. The opt-in guest runner now covers four scalar fixtures
+with 4, 7, 5 and 5 assertions. Mock-runner tests and the 23-case Rust
+risk inventory remain **host-only** evidence: they do not execute
+Oreslang Region kernels or prove zero venue calls in an actor pipeline.
+
+A real compiler-backed, exact-head guest and risk-gate execution is still
+required. No claim of Rust, scalar, compute, ownership, hardware or
+real-time passing evidence follows from runner jobs with empty steps.
