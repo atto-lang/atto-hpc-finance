@@ -604,10 +604,7 @@ mod tests {
             sample_variance(&[f64::MAX, -f64::MAX]),
             Err(KernelError::NonFiniteResult { index: 0 })
         );
-        assert_eq!(
-            sample_variance(&[f64::MAX, f64::MAX]),
-            Ok(0.0)
-        );
+        assert_eq!(sample_variance(&[f64::MAX, f64::MAX]), Ok(0.0));
     }
 
     #[test]
@@ -756,7 +753,11 @@ mod tests {
             let before = venue.calls;
             dispatch(decision, &mut venue);
             if !decision.approved {
-                assert_eq!(venue.calls, before, "rejected case reached venue: {}", parts[0]);
+                assert_eq!(
+                    venue.calls, before,
+                    "rejected case reached venue: {}",
+                    parts[0]
+                );
                 rejected += 1;
             }
             rows += 1;
@@ -774,5 +775,4 @@ mod tests {
         assert_eq!(mean(&[-1.0e308, -1.0e308]), Ok(-1.0e308));
         assert_eq!(mean(&[1.0, 2.0, 3.0]), Ok(2.0));
     }
-
 }
