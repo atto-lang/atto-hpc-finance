@@ -1,0 +1,37 @@
+name: HPC finance real Oreslang guest (reviewed compiler)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Manual-only. No cross-organization private source export or checkout token.
+# The self-hosted runner and environment must be separately authorized.
+jobs:
+  compiler-backed-oreslang-guests:
+    runs-on: [self-hosted, linux, oreslang-approved]
+    environment: hpc-oreslang-approved
+    timeout-minutes: 20
+    env:
+      EXPECTED_SOURCE_SHA: ${{ vars.HPC_REVIEWED_SOURCE_SHA }}
+      EXPECTED_SOURCE_TREE: ${{ vars.HPC_REVIEWED_SOURCE_TREE }}
+      EXPECTED_COMPILER_SHA256: ${{ vars.HPC_REVIEWED_COMPILER_SHA256 }}
+      ORESLANG_BIN: ${{ vars.HPC_REVIEWED_COMPILER_PATH }}
+      HPC_GUEST_TIMEOUT_SECONDS: '60'
+      HPC_EVIDENCE_DIR: ${{ runner.temp }}/hpc-finance-exact-head
+    steps:
+      - name: Fail closed unless independent review pins have been provisioned
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "$EXPECTED_SOURCE_SHA" && -n "$EXPECTED_SOURCE_TREE" ]] || { echo 'HPC_GUEST_NOT_ADMITTED: no reviewed finance source pin'; exit 65; }
+          [[ -n "$EXPECTED_COMPILER_SHA256" && -n "$ORESLANG_BIN" ]] || { echo 'HPC_GUEST_NOT_ADMITTED: no reviewed compiler pin'; exit 65; }
+          [[ "$GITHUB_SHA" == "$EXPECTED_SOURCE_SHA" ]] || { echo 'HPC_GUEST_NOT_ADMITTED: triggered ref is not reviewed commit'; exit 65; }
+      - name: Checkout reviewed finance exact head (source-local)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Execute all seven Oreslang guest programs
+        shell: bash
+        run: bash scripts/run-scalar-guest-exact-head.sh
