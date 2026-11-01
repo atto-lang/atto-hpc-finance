@@ -62,7 +62,9 @@ source-free execution path is a prerequisite, not evidence of correctness.
 The checked-in `scripts/run-scalar-guest-exact-head.sh` is an **opt-in**
 compiler-backed execution gate, not a mock runner. It executes exactly
 `tests/scalar_smoke.ores`, `tests/scalar_overflow_atomic.ores`,
-`tests/mean_extremes.ores`, and `tests/batch_shape.ores`
+`tests/mean_extremes.ores`, `tests/batch_shape.ores`,
+`tests/scalar_error_matrix.ores`, `tests/risk_gate_scalar_23.ores`,
+and `tests/risk_gate_cross_product.ores`
 through one reviewed Oreslang CLI and compares byte-exact expected stdout.
 Any compiler stderr, nonzero exit, output mismatch, dirty checkout, source
 identity mismatch, or compiler digest mismatch fails closed.
@@ -146,3 +148,25 @@ Oreslang Region kernels or prove zero venue calls in an actor pipeline.
 A real compiler-backed, exact-head guest and risk-gate execution is still
 required. No claim of Rust, scalar, compute, ownership, hardware or
 real-time passing evidence follows from runner jobs with empty steps.
+
+## Oreslang-language guest expansion (2026-10-31)
+
+Seven **actual Oreslang source programs** are now in the exact-head gate:
+4 smoke, 7 overflow-atomicity, 5 extreme-mean, 5 batch-shape,
+12 error-boundary, 23 shared scalar risk, and 4 cross-product assertions:
+**60 assertion booleans** total. The risk cross-product program also
+executes 180 Oreslang risk decisions on its own if the guest runs.
+All Oreslang source fixtures and their expected output are **authored**, not
+executed under a reviewed compiler. The Rust TSV-to-Oreslang inventory checker
+is host source-contract coverage, not a compiler receipt.
+
+Separately, oreslang-source.java draft PR #2394 implements two independent
+GraalVM JUnit cases which really evaluate Oreslang guest source when admitted;
+its workflow run 41268451194 attempts 1 and 2 both failed with **zero steps**.
+No compiler-backed Oreslang execution has been established there either.
+
+At new finance commit `318bd5b0eabf1c7c4b03d4c5c87d1ac9147f1e51`,
+source-free run `41268538063` and Rust runs `41268538068` and
+`41268541326` have failed with **zero executed steps**. Classify as
+RUNNER_NOT_ADMITTED; the earlier 31 Rust passes occurred at a different tree.
+No private-source cross-organization mirror is authorized by this change.
