@@ -92,3 +92,21 @@ The 180-case Oreslang cross-product additionally checks each reason-code count:
 `[2,24,12,6,60,48,16,12]` for reason codes `0..7`. These counts were
 independently cross-checked against a JavaScript **host model**, not an
 Oreslang execution. A real compiler must reproduce them exactly.
+
+## Manual-only source-org compiler workflow
+
+`.github/workflows/oreslang-guest-exact-head.yml` is an opt-in,
+`workflow_dispatch`-only **real Oreslang** execution gate. It requires a
+separately approved self-hosted Linux runner labeled `oreslang-approved`,
+a protected `hpc-oreslang-approved` environment and independently reviewed
+repository/environment variables: `HPC_REVIEWED_SOURCE_SHA`,
+`HPC_REVIEWED_SOURCE_TREE`, `HPC_REVIEWED_COMPILER_SHA256`, and
+`HPC_REVIEWED_COMPILER_PATH`. Do not configure, approve or dispatch this
+workflow solely based on a PR author's request. It refuses incomplete pins,
+checks the source ref, checks out **only this same source repository** using
+read-only checkout, and executes the seven Oreslang guests against the
+approved CLI. No private source mirror or cross-org token is involved.
+
+The workflow **has not been dispatched** and no authorized native compiler
+binary or independent environment review has been established. Workflow
+presence and mock-only Bash tests must never be described as guest evidence.
