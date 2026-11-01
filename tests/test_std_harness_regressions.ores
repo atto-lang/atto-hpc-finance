@@ -1,5 +1,5 @@
-import class TestCase, TestSuite, TestOptions, TestOutcome, RunSummary from "std/testing";
-import fnc expect_true, expect_false, expect_equal_int, expect_equal_string, run_suite, require_success, fail from "std/testing";
+import class TestCase, TestSuite, TestOptions, TestOutcome, RunSummary from "ores.std/testing";
+import fnc expect_true, expect_false, expect_equal_int, expect_equal_string, run_suite, require_success, fail from "ores.std/testing";
 import module finance_scalar from "../src/scalar.ores";
 fnc empty_mean_is_error_not_nan(): TestOutcome {
   return expect_true(finance_scalar.mean(arr[], 0).is_err(),
