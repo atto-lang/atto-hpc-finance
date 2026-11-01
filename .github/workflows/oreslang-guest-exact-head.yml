@@ -19,7 +19,6 @@ jobs:
       EXPECTED_COMPILER_SHA256: ${{ vars.HPC_REVIEWED_COMPILER_SHA256 }}
       ORESLANG_BIN: ${{ vars.HPC_REVIEWED_COMPILER_PATH }}
       HPC_GUEST_TIMEOUT_SECONDS: '60'
-      HPC_EVIDENCE_DIR: ${{ runner.temp }}/hpc-finance-exact-head
     steps:
       - name: Fail closed unless independent review pins have been provisioned
         shell: bash
@@ -34,4 +33,6 @@ jobs:
           persist-credentials: false
       - name: Execute all seven Oreslang guest programs
         shell: bash
+        env:
+          HPC_EVIDENCE_DIR: ${{ runner.temp }}/hpc-finance-exact-head
         run: bash scripts/run-scalar-guest-exact-head.sh
