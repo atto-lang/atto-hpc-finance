@@ -21,7 +21,7 @@ case "$1" in
   */mean_extremes.ores|*/batch_shape.ores) printf 'true:true:true:true:true' ;;
   */scalar_error_matrix.ores) printf 'true:true:true:true:true:true:true:true:true:true:true:true' ;;
   */risk_gate_scalar_23.ores) printf 'true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true:true' ;;
-  */risk_gate_cross_product.ores) printf 'true:true:true:true' ;;
+  */risk_gate_cross_product.ores) printf 'true:true:true:true:true:true:true:true:true:true:true:true' ;;
   *) exit 22 ;;
 esac
 CLI
