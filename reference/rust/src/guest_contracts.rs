@@ -60,10 +60,7 @@ mod tests {
         let runner = include_str!("../../../scripts/run-scalar-guest-exact-head.sh");
         let mock_only = include_str!("../../../scripts/test-scalar-guest-gate.sh");
         for (name, _, assertions) in NEW_GUESTS {
-            let expected = std::iter::repeat("true")
-                .take(assertions)
-                .collect::<Vec<_>>()
-                .join(":");
+            let expected = vec!["true"; assertions].join(":");
             assert!(
                 runner.contains(format!("{name}) expected='{expected}'").as_str()),
                 "exact-head runner has wrong oracle: {name}"
