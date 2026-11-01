@@ -65,15 +65,15 @@ mod tests {
                 .collect::<Vec<_>>()
                 .join(":");
             assert!(
-                runner.contains(&format!("{name}) expected='{expected}'")),
+                runner.contains(format!("{name}) expected='{expected}'").as_str()),
                 "exact-head runner has wrong oracle: {name}"
             );
             assert!(
-                mock_only.contains(&format!("*/{name}.ores) printf '{expected}'")),
+                mock_only.contains(format!("*/{name}.ores) printf '{expected}'").as_str()),
                 "mock-only test has wrong expected output: {name}"
             );
             assert!(
-                mock_only.contains(&format!("HPC_GUEST_CASE=PASS {name}")),
+                mock_only.contains(format!("HPC_GUEST_CASE=PASS {name}").as_str()),
                 "mock-only test is missing receipt assertion: {name}"
             );
         }
