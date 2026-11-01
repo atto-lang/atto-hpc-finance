@@ -78,11 +78,11 @@ subject to the compiler integration contracts above.
 The integration branch retains PR #11's latest failure-atomic scalar and
 fail-closed risk work, PR #12's independent extreme-mean fixture, and PR #14's
 batch-shape validator, Welford bounds, and Rust oracle. The source-local
-exact-head script specifies four Oreslang scalar guest fixtures, but none
+exact-head script specifies seven Oreslang scalar and risk guest fixtures, but none
 is certified until a reviewed compiler actually executes them. The Rust
 model is not an Oreslang Region risk/actor integration test. See
 `docs/unified-reconciliation.md` and `docs/hpc-verification-gates.md`.
 
 The exact-head Oreslang-language guest suite now covers **seven** programs,
-**60** expected booleans, and a separate **180-case** finite risk cross-product;
+**68** expected booleans, and a separate **180-case** finite risk cross-product;
 all await actual compiler-backed execution. See `docs/oreslang-guest-parity.md`.
