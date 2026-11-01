@@ -17,6 +17,12 @@ rows**, Git blob `cec489c1f7603617797340dd1b4a71cc85acfebd`.
 
 ## Shared contract identity
 
+The exact guest inventory is also byte-identical across all four repositories:
+`contracts/v1/hpc-finance/guest-manifest.json` has reviewed Git blob SHA
+`062cff056919708b2cc9e6f9a6f4cb6ec00661e8`, enumerating 11 guest
+file blob IDs and the 182 expected boolean assertions. This is a SOURCE
+MANIFEST, not execution of those Oreslang files.
+
 The LLVM, Wasm and .NET PRs contain byte-identical copies of exactly
 `fixtures/risk-gate-v1.tsv` from this repo, under
 `contracts/v1/hpc-finance/risk-gate-v1.tsv`. Verified Git blob SHA:
