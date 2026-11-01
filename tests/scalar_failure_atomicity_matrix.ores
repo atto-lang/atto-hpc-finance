@@ -1,0 +1,81 @@
+import module finance_scalar from "../src/scalar.ores";
+
+// Error-first and no-partial-output Oreslang guest checks. A boolean is not
+// passed until a pinned Oreslang compiler executes this exact source.
+// Expected stdout: 19 colon-delimited "true" values (no newline).
+pub routine main() -> void {
+  val float big = 1.0e308;
+  val float positive_infinity = big * big;
+  val float nonfinite_nan = positive_infinity - positive_infinity;
+  let Array<float> out_zero = arr[31.0, 32.0, 33.0];
+  let Array<float> out_infinite = arr[34.0, 35.0];
+  let Array<float> out_nan = arr[36.0];
+  let Array<float> out_negzero = arr[37.0];
+  let Array<float> out_wrong_input = arr[38.0, 39.0];
+  let Array<float> out_wrong_output = arr[40.0, 41.0];
+  let Array<float> out_negative_count = arr[42.0];
+  let Array<float> roll_zero = arr[43.0, 44.0];
+  let Array<float> roll_excess = arr[45.0];
+  let Array<float> roll_nan = arr[46.0, 47.0, 48.0];
+  let Array<float> roll_inf = arr[49.0, 50.0, 51.0];
+  let Array<float> roll_short = arr[52.0];
+  let Array<float> roll_bad_count = arr[53.0];
+
+  // case:late_zero_denominator
+  stdio.stdout.write(finance_scalar.simple_returns_into(arr[2.0, 4.0, 0.0, 8.0], out_zero, 4).is_err() && out_zero[0] == 31.0 && out_zero[1] == 32.0 && out_zero[2] == 33.0);
+  stdio.stdout.write(":");
+  // case:late_nonfinite_price
+  stdio.stdout.write(finance_scalar.simple_returns_into(arr[1.0, 2.0, positive_infinity], out_infinite, 3).is_err() && out_infinite[0] == 34.0 && out_infinite[1] == 35.0);
+  stdio.stdout.write(":");
+  // case:first_nonfinite_price
+  stdio.stdout.write(finance_scalar.simple_returns_into(arr[nonfinite_nan, 2.0], out_nan, 2).is_err() && out_nan[0] == 36.0);
+  stdio.stdout.write(":");
+  // case:negative_zero_denominator
+  stdio.stdout.write(finance_scalar.simple_returns_into(arr[0.0 - 0.0, 2.0], out_negzero, 2).is_err() && out_negzero[0] == 37.0);
+  stdio.stdout.write(":");
+  // case:return_input_length
+  stdio.stdout.write(finance_scalar.simple_returns_into(arr[1.0, 2.0], out_wrong_input, 3).is_err() && out_wrong_input[0] == 38.0 && out_wrong_input[1] == 39.0);
+  stdio.stdout.write(":");
+  // case:return_output_length
+  stdio.stdout.write(finance_scalar.simple_returns_into(arr[1.0, 2.0], out_wrong_output, 2).is_err() && out_wrong_output[0] == 40.0 && out_wrong_output[1] == 41.0);
+  stdio.stdout.write(":");
+  // case:return_negative_count
+  stdio.stdout.write(finance_scalar.simple_returns_into(arr[1.0, 2.0], out_negative_count, -1).is_err() && out_negative_count[0] == 42.0);
+  stdio.stdout.write(":");
+  // case:rolling_window_zero
+  stdio.stdout.write(finance_scalar.rolling_mean_into(arr[1.0, 2.0], roll_zero, 2, 0).is_err() && roll_zero[0] == 43.0 && roll_zero[1] == 44.0);
+  stdio.stdout.write(":");
+  // case:rolling_window_excess
+  stdio.stdout.write(finance_scalar.rolling_mean_into(arr[1.0, 2.0], roll_excess, 2, 3).is_err() && roll_excess[0] == 45.0);
+  stdio.stdout.write(":");
+  // case:rolling_late_nan
+  stdio.stdout.write(finance_scalar.rolling_mean_into(arr[1.0, 2.0, 3.0, nonfinite_nan], roll_nan, 4, 2).is_err() && roll_nan[0] == 46.0 && roll_nan[1] == 47.0 && roll_nan[2] == 48.0);
+  stdio.stdout.write(":");
+  // case:rolling_late_infinite
+  stdio.stdout.write(finance_scalar.rolling_mean_into(arr[1.0, 2.0, 3.0, positive_infinity], roll_inf, 4, 2).is_err() && roll_inf[0] == 49.0 && roll_inf[1] == 50.0 && roll_inf[2] == 51.0);
+  stdio.stdout.write(":");
+  // case:rolling_output_length
+  stdio.stdout.write(finance_scalar.rolling_mean_into(arr[1.0, 2.0, 3.0], roll_short, 3, 2).is_err() && roll_short[0] == 52.0);
+  stdio.stdout.write(":");
+  // case:rolling_negative_count
+  stdio.stdout.write(finance_scalar.rolling_mean_into(arr[1.0, 2.0], roll_bad_count, -1, 1).is_err() && roll_bad_count[0] == 53.0);
+  stdio.stdout.write(":");
+  // case:variance_nonfinite
+  stdio.stdout.write(finance_scalar.sample_variance(arr[1.0, nonfinite_nan], 2).is_err());
+  stdio.stdout.write(":");
+  // case:variance_overflow
+  stdio.stdout.write(finance_scalar.sample_variance(arr[big, 0.0 - big], 2).is_err());
+  stdio.stdout.write(":");
+  // case:mean_nonfinite
+  stdio.stdout.write(finance_scalar.mean(arr[1.0, positive_infinity], 2).is_err());
+  stdio.stdout.write(":");
+  // case:drawdown_negative
+  stdio.stdout.write(finance_scalar.max_drawdown(arr[1.0, -1.0], 2).is_err());
+  stdio.stdout.write(":");
+  // case:drawdown_nonfinite
+  stdio.stdout.write(finance_scalar.max_drawdown(arr[1.0, nonfinite_nan], 2).is_err());
+  stdio.stdout.write(":");
+  // case:drawdown_zero
+  stdio.stdout.write(finance_scalar.max_drawdown(arr[0.0, 0.0], 2).is_ok());
+  return;
+}
