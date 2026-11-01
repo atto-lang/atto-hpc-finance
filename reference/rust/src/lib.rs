@@ -4,6 +4,7 @@
 //! need to mirror this Rust API.
 
 pub mod batch_shape;
+pub mod risk_dispatch;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum KernelError {
