@@ -76,8 +76,7 @@ mod tests {
                 limit_price: parse_numeric(columns[3]),
             };
             let before = venue.calls.len();
-            let decision =
-                authorize_mock_limit(order, parse_numeric(columns[4]), &mut venue);
+            let decision = authorize_mock_limit(order, parse_numeric(columns[4]), &mut venue);
             let expected_approved = columns[5].parse::<bool>().expect("approved");
             let expected_reason = columns[6].parse::<u8>().expect("reason");
             assert_eq!(decision.approved, expected_approved, "{}", columns[0]);
