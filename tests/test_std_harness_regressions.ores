@@ -9,10 +9,24 @@ fnc variance_of_one_sample_rejected(): TestOutcome {
   return expect_true(finance_scalar.sample_variance(arr[3.0], 1).is_err(),
     "sample variance needs at least two observations");
 }
+fnc constant_series_mean_is_exact(): TestOutcome {
+  val result = finance_scalar.mean(arr[7.0, 7.0, 7.0], 3);
+  if result.is_err(); then return fail("constant nonempty mean was rejected"); fi
+  return expect_true(result.unwrap() == 7.0,
+    "mean of identical finite observations must preserve the constant");
+}
+
+fnc negative_count_is_rejected(): TestOutcome {
+  return expect_true(finance_scalar.mean(arr[], -1).is_err(),
+    "negative observation count must fail before array access");
+}
+
 pub routine main(): void {
   val TestSuite suite = new TestSuite("finance-scalar", arr[
     new TestCase("empty_mean_is_error_not_nan", empty_mean_is_error_not_nan, false, ""),
-    new TestCase("variance_of_one_sample_rejected", variance_of_one_sample_rejected, false, "")
+    new TestCase("variance_of_one_sample_rejected", variance_of_one_sample_rejected, false, ""),
+    new TestCase("constant_series_mean_is_exact", constant_series_mean_is_exact, false, ""),
+    new TestCase("negative_count_is_rejected", negative_count_is_rejected, false, "")
   ]);
   val TestOptions options = new TestOptions("", false, true);
   val RunSummary summary = run_suite(rt borrow suite, rt borrow options);
