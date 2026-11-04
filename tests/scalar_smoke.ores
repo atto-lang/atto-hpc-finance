@@ -37,5 +37,15 @@ pub routine main() -> void {
     variance_result.is_ok()
       && variance_result.unwrap() == 1.0
   );
+  // Hard failures at invalid shape/window/sample boundaries.
+  if !finance_scalar.simple_returns_into(arr[1.0], arr[0.0], 1).is_err() then
+    panic("one price cannot yield a return");
+  fi
+  if !finance_scalar.rolling_mean_into(arr[1.0, 2.0], arr[0.0], 2, 0).is_err() then
+    panic("zero-width rolling window accepted");
+  fi
+  if !finance_scalar.sample_variance(arr[42.0], 1).is_err() then
+    panic("sample variance with one observation accepted");
+  fi
   return;
 }
