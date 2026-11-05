@@ -55,11 +55,11 @@ fn each_ohlcv_column_mismatch_names_the_first_invalid_column() {
     for target in ["open", "high", "low", "close", "volume"] {
         let bars = BarColumns {
             ts_ns: &ts_ns,
-            open: if target == "open" { &short } else { &valid },
-            high: if target == "high" { &short } else { &valid },
-            low: if target == "low" { &short } else { &valid },
-            close: if target == "close" { &short } else { &valid },
-            volume: if target == "volume" { &short } else { &valid },
+            open: if target == "open" { &short[..] } else { &valid[..] },
+            high: if target == "high" { &short[..] } else { &valid[..] },
+            low: if target == "low" { &short[..] } else { &valid[..] },
+            close: if target == "close" { &short[..] } else { &valid[..] },
+            volume: if target == "volume" { &short[..] } else { &valid[..] },
         };
         assert_eq!(bars.validate_lengths(),
             Err(KernelError::ColumnLength {
