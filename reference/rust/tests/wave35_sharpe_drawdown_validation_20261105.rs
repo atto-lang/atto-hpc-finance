@@ -56,7 +56,10 @@ fn sharpe_annualization_and_nonfinite_returns_are_rejected() {
         sharpe_ratio(&[0.1, f64::NAN], 0.0, 252.0),
         Err(KernelError::NonFinite { index: 1 })
     );
-    assert!(sharpe_ratio(&returns, 0.0, 252.0).unwrap().unwrap().is_finite());
+    assert!(sharpe_ratio(&returns, 0.0, 252.0)
+        .unwrap()
+        .unwrap()
+        .is_finite());
 }
 
 #[test]
