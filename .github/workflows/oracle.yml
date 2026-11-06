@@ -19,7 +19,16 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: Verify physical source identity at exact PR head
+        working-directory: .
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: bash scripts/verify_ci_checkout_head.sh
+      - name: Exercise adversarial Git checkout identity cases
+        working-directory: .
+        run: python3 -m unittest discover -s tests -p test_ci_checkout_head_20261106.py -v
       - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d
         with:
           toolchain: stable
