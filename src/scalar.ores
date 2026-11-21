@@ -13,6 +13,27 @@ struct Drawdown {
   fraction: float
 }
 
+ 
+// Logical dimensions and physical Region capacities for one compute batch.
+// Capacities MUST come from trusted runtime Region metadata, never merely
+// untrusted message fields. Validation must precede every kernel launch.
+struct ComputeBatchShape {
+  bar_count: int
+  return_count: int
+  rolling_count: int
+  window: int
+  chunk_size: int
+  chunk_count: int
+  bars_capacity: int
+  returns_capacity: int
+  rolling_capacity: int
+  chunks_capacity: int
+  total_capacity: int
+  signal_capacity: int
+  order_capacity: int
+  decision_capacity: int
+}
+
 //
 // This module intentionally uses ordinary arrays rather than Region<T>. It is
 // the Oreslang reference path for validation, small batches, differential
@@ -43,6 +64,92 @@ define module finance_scalar
       expected: expected,
       actual: actual
     };
+  }
+
+  // Logical and physical extents are validated before any Region-based kernel
+  // launch. A correct shape alone does not grant ownership or mailbox rights.
+  // The calling boundary must obtain capacities from trustworthy Region metadata.
+  pub fnc validate_compute_batch_shape(
+    ComputeBatchShape shape
+  ) -> Result<int, KernelError> {
+    // The signal kernel indexes returns[return_count-1] and
+    // rolling[rolling_count-1]; therefore the full pipeline is nonempty.
+    if shape.bar_count < 2 {
+      return Err(kernel_error("insufficient_bars", -1, 2, shape.bar_count));
+    }
+
+    val expected_returns = shape.bar_count - 1;
+    if shape.return_count != expected_returns {
+      return Err(kernel_error(
+        "return_count", -1, expected_returns, shape.return_count
+      ));
+    }
+
+    if shape.window <= 0 || shape.window > shape.return_count {
+      return Err(kernel_error(
+        "invalid_window", -1, shape.return_count, shape.window
+      ));
+    }
+
+    val expected_rolling = shape.return_count - shape.window + 1;
+    if shape.rolling_count != expected_rolling {
+      return Err(kernel_error(
+        "rolling_count", -1, expected_rolling, shape.rolling_count
+      ));
+    }
+
+    if shape.chunk_size <= 0 {
+      return Err(kernel_error(
+        "invalid_chunk_size", -1, 1, shape.chunk_size
+      ));
+    }
+
+    // Exact ceil division without (count + chunk_size - 1) overflow.
+    val expected_chunks = 1 + (shape.return_count - 1) / shape.chunk_size;
+    if shape.chunk_count != expected_chunks {
+      return Err(kernel_error(
+        "chunk_count", -1, expected_chunks, shape.chunk_count
+      ));
+    }
+
+    if shape.bars_capacity != shape.bar_count {
+      return Err(kernel_error(
+        "bars_capacity", -1, shape.bar_count, shape.bars_capacity
+      ));
+    }
+    if shape.returns_capacity != shape.return_count {
+      return Err(kernel_error(
+        "returns_capacity", -1, shape.return_count, shape.returns_capacity
+      ));
+    }
+    if shape.rolling_capacity != shape.rolling_count {
+      return Err(kernel_error(
+        "rolling_capacity", -1, shape.rolling_count, shape.rolling_capacity
+      ));
+    }
+    if shape.chunks_capacity != shape.chunk_count {
+      return Err(kernel_error(
+        "chunks_capacity", -1, shape.chunk_count, shape.chunks_capacity
+      ));
+    }
+
+    // All terminal and aggregate Region outputs are exactly one slot.
+    if shape.total_capacity != 1 {
+      return Err(kernel_error("total_capacity", -1, 1, shape.total_capacity));
+    }
+    if shape.signal_capacity != 1 {
+      return Err(kernel_error("signal_capacity", -1, 1, shape.signal_capacity));
+    }
+    if shape.order_capacity != 1 {
+      return Err(kernel_error("order_capacity", -1, 1, shape.order_capacity));
+    }
+    if shape.decision_capacity != 1 {
+      return Err(kernel_error(
+        "decision_capacity", -1, 1, shape.decision_capacity
+      ));
+    }
+
+    return Ok(expected_chunks);
   }
 
   pub fnc simple_returns_into(

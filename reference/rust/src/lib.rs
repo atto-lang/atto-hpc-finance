@@ -3,6 +3,8 @@
 //! The public Oreslang library should match these semantics, but it does not
 //! need to mirror this Rust API.
 
+pub mod batch_shape;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum KernelError {
     OutputLength {
