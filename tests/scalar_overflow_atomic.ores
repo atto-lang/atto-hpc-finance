@@ -1,0 +1,66 @@
+import module finance_scalar from "../src/scalar.ores";
+
+// Exact guest acceptance target for fail-before-write and arithmetic overflow.
+// Requires the pinned upstream Oreslang compiler; DO NOT count static source
+// inspection, Rust or host output as execution of this fixture.
+// Expected stdout: true:true:true:true:true:true:true
+pub routine main() -> void {
+  // IEEE-754 f64: 2 * 1e308 overflows; 2 * 1e300 does not.
+  val float big = 1.0e308;
+  val float small = 1.0e-300;
+
+  // A late (third) computed return overflows after two valid returns.
+  val Array<float> prices = arr[1.0, 2.0, small, big];
+  let Array<float> return_out = arr[17.0, 18.0, 19.0];
+  val return_error = finance_scalar.simple_returns_into(
+    prices, return_out, 4
+  );
+  stdio.stdout.write(return_error.is_err());
+  stdio.stdout.write(":");
+  stdio.stdout.write(
+    return_out[0] == 17.0 && return_out[1] == 18.0 &&
+    return_out[2] == 19.0
+  );
+  stdio.stdout.write(":");
+
+  // A late rolling window overflows. Earlier output slots must not change.
+  val Array<float> windows = arr[1.0, 1.0, big, big];
+  let Array<float> rolling_out = arr[11.0, 12.0, 13.0];
+  val rolling_error = finance_scalar.rolling_mean_into(
+    windows, rolling_out, 4, 2
+  );
+  stdio.stdout.write(rolling_error.is_err());
+  stdio.stdout.write(":");
+  stdio.stdout.write(
+    rolling_out[0] == 11.0 && rolling_out[1] == 12.0 &&
+    rolling_out[2] == 13.0
+  );
+  stdio.stdout.write(":");
+
+  // Finite values can still overflow the Welford variance accumulator.
+  val Array<float> variance_extremes = arr[big, 0.0 - big];
+  val variance_error = finance_scalar.sample_variance(
+    variance_extremes, 2
+  );
+  stdio.stdout.write(variance_error.is_err());
+  stdio.stdout.write(":");
+
+  // Preserve the ordinary, non-overflowing success path.
+  let Array<float> valid_out = arr[0.0, 0.0];
+  val valid = finance_scalar.simple_returns_into(
+    arr[100.0, 110.0, 99.0], valid_out, 3
+  );
+  stdio.stdout.write(valid.is_ok() &&
+    valid_out[0] > 0.099 && valid_out[0] < 0.101 &&
+    valid_out[1] < -0.099 && valid_out[1] > -0.101
+  );
+  stdio.stdout.write(":");
+
+  // Unlike the naive (x - mean)/n formula, opposite-sign finite
+  // endpoints must not overflow when their arithmetic mean is zero.
+  val extreme_mean = finance_scalar.mean(arr[big, 0.0 - big], 2);
+  stdio.stdout.write(
+    extreme_mean.is_ok() && extreme_mean.unwrap() == 0.0
+  );
+  return;
+}

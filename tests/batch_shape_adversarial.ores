@@ -1,0 +1,148 @@
+import module finance_scalar from "../src/scalar.ores";
+
+// SOURCE-ONLY until independently compiled with reviewed Oreslang binary.
+// Regression inventory: 7 accepted + 30 rejected shapes; zero physical
+// Region allocations or actor ownership authority implied.
+// Expected stdout: 37 colon-delimited "true" values.
+fnc make_shape(int bar_count, int return_count, int rolling_count, int window, int chunk_size, int chunk_count, int bars_capacity, int returns_capacity, int rolling_capacity, int chunks_capacity, int total_capacity, int signal_capacity, int order_capacity, int decision_capacity) -> ComputeBatchShape {
+  return ComputeBatchShape{
+    bar_count: bar_count,
+    return_count: return_count,
+    rolling_count: rolling_count,
+    window: window,
+    chunk_size: chunk_size,
+    chunk_count: chunk_count,
+    bars_capacity: bars_capacity,
+    returns_capacity: returns_capacity,
+    rolling_capacity: rolling_capacity,
+    chunks_capacity: chunks_capacity,
+    total_capacity: total_capacity,
+    signal_capacity: signal_capacity,
+    order_capacity: order_capacity,
+    decision_capacity: decision_capacity
+  };
+}
+
+fnc check(int bar_count, int return_count, int rolling_count, int window, int chunk_size, int chunk_count, int bars_capacity, int returns_capacity, int rolling_capacity, int chunks_capacity, int total_capacity, int signal_capacity, int order_capacity, int decision_capacity, bool valid) -> bool {
+  val result = finance_scalar.validate_compute_batch_shape(
+    make_shape(bar_count, return_count, rolling_count, window, chunk_size, chunk_count, bars_capacity, returns_capacity, rolling_capacity, chunks_capacity, total_capacity, signal_capacity, order_capacity, decision_capacity)
+  );
+  if valid {
+    return result.is_ok();
+  }
+  return result.is_err();
+}
+
+pub routine main() -> void {
+  // case:baseline
+  stdio.stdout.write(check(5, 4, 3, 2, 3, 2, 5, 4, 3, 2, 1, 1, 1, 1, true));
+  stdio.stdout.write(":");
+  // case:minimum_nonempty
+  stdio.stdout.write(check(2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, true));
+  stdio.stdout.write(":");
+  // case:full_window
+  stdio.stdout.write(check(5, 4, 1, 4, 4, 1, 5, 4, 1, 1, 1, 1, 1, 1, true));
+  stdio.stdout.write(":");
+  // case:oversize_chunk_is_one_chunk
+  stdio.stdout.write(check(5, 4, 3, 2, 8, 1, 5, 4, 3, 1, 1, 1, 1, 1, true));
+  stdio.stdout.write(":");
+  // case:uneven_chunk_tail
+  stdio.stdout.write(check(6, 5, 4, 2, 2, 3, 6, 5, 4, 3, 1, 1, 1, 1, true));
+  stdio.stdout.write(":");
+  // case:exact_one_rolling_point
+  stdio.stdout.write(check(8, 7, 1, 7, 3, 3, 8, 7, 1, 3, 1, 1, 1, 1, true));
+  stdio.stdout.write(":");
+  // case:huge_valid_shape_no_buffers_allocated
+  stdio.stdout.write(check(2147483647, 2147483646, 1, 2147483646, 2147483647, 1, 2147483647, 2147483646, 1, 1, 1, 1, 1, 1, true));
+  stdio.stdout.write(":");
+  // case:zero_bars
+  stdio.stdout.write(check(0, 4, 3, 2, 3, 2, 5, 4, 3, 2, 1, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:one_bar
+  stdio.stdout.write(check(1, 4, 3, 2, 3, 2, 5, 4, 3, 2, 1, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:negative_bars
+  stdio.stdout.write(check(-1, 4, 3, 2, 3, 2, 5, 4, 3, 2, 1, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:incorrect_return_count
+  stdio.stdout.write(check(5, 3, 3, 2, 3, 2, 5, 4, 3, 2, 1, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:negative_return_count
+  stdio.stdout.write(check(5, -1, 3, 2, 3, 2, 5, 4, 3, 2, 1, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:zero_window
+  stdio.stdout.write(check(5, 4, 3, 0, 3, 2, 5, 4, 3, 2, 1, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:window_above_returns
+  stdio.stdout.write(check(5, 4, 3, 5, 3, 2, 5, 4, 3, 2, 1, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:negative_window
+  stdio.stdout.write(check(5, 4, 3, -2, 3, 2, 5, 4, 3, 2, 1, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:bad_rolling_count
+  stdio.stdout.write(check(5, 4, 2, 2, 3, 2, 5, 4, 3, 2, 1, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:negative_rolling_count
+  stdio.stdout.write(check(5, 4, -1, 2, 3, 2, 5, 4, 3, 2, 1, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:zero_chunk
+  stdio.stdout.write(check(5, 4, 3, 2, 0, 2, 5, 4, 3, 2, 1, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:negative_chunk
+  stdio.stdout.write(check(5, 4, 3, 2, -1, 2, 5, 4, 3, 2, 1, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:too_few_chunks
+  stdio.stdout.write(check(5, 4, 3, 2, 3, 1, 5, 4, 3, 2, 1, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:too_many_chunks
+  stdio.stdout.write(check(5, 4, 3, 2, 3, 3, 5, 4, 3, 2, 1, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:short_bar_capacity
+  stdio.stdout.write(check(5, 4, 3, 2, 3, 2, 4, 4, 3, 2, 1, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:long_bar_capacity
+  stdio.stdout.write(check(5, 4, 3, 2, 3, 2, 6, 4, 3, 2, 1, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:short_returns_capacity
+  stdio.stdout.write(check(5, 4, 3, 2, 3, 2, 5, 3, 3, 2, 1, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:long_returns_capacity
+  stdio.stdout.write(check(5, 4, 3, 2, 3, 2, 5, 5, 3, 2, 1, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:short_rolling_capacity
+  stdio.stdout.write(check(5, 4, 3, 2, 3, 2, 5, 4, 2, 2, 1, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:long_rolling_capacity
+  stdio.stdout.write(check(5, 4, 3, 2, 3, 2, 5, 4, 4, 2, 1, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:short_chunks_capacity
+  stdio.stdout.write(check(5, 4, 3, 2, 3, 2, 5, 4, 3, 1, 1, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:long_chunks_capacity
+  stdio.stdout.write(check(5, 4, 3, 2, 3, 2, 5, 4, 3, 3, 1, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:zero_total_capacity
+  stdio.stdout.write(check(5, 4, 3, 2, 3, 2, 5, 4, 3, 2, 0, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:excess_total_capacity
+  stdio.stdout.write(check(5, 4, 3, 2, 3, 2, 5, 4, 3, 2, 2, 1, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:zero_signal_capacity
+  stdio.stdout.write(check(5, 4, 3, 2, 3, 2, 5, 4, 3, 2, 1, 0, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:excess_signal_capacity
+  stdio.stdout.write(check(5, 4, 3, 2, 3, 2, 5, 4, 3, 2, 1, 2, 1, 1, false));
+  stdio.stdout.write(":");
+  // case:zero_order_capacity
+  stdio.stdout.write(check(5, 4, 3, 2, 3, 2, 5, 4, 3, 2, 1, 1, 0, 1, false));
+  stdio.stdout.write(":");
+  // case:excess_order_capacity
+  stdio.stdout.write(check(5, 4, 3, 2, 3, 2, 5, 4, 3, 2, 1, 1, 2, 1, false));
+  stdio.stdout.write(":");
+  // case:zero_decision_capacity
+  stdio.stdout.write(check(5, 4, 3, 2, 3, 2, 5, 4, 3, 2, 1, 1, 1, 0, false));
+  stdio.stdout.write(":");
+  // case:excess_decision_capacity
+  stdio.stdout.write(check(5, 4, 3, 2, 3, 2, 5, 4, 3, 2, 1, 1, 1, 2, false));
+  return;
+}

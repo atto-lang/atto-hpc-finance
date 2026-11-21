@@ -1,0 +1,122 @@
+import module finance_risk_scalar from "../src/risk_scalar.ores";
+
+// Multi-defect precedence in a real Oreslang guest, including signed zero,
+// NaN and both infinities. Expected: 34 colon-separated true values.
+// Host-derived expected codes are not evidence of guest execution.
+fnc check(int side, float quantity, float price, float ceiling, int expected) -> bool {
+  val decision = finance_risk_scalar.limit_order(
+    side, quantity, price, ceiling
+  );
+  return decision.reason_code == expected &&
+         decision.approved == (expected == 0);
+}
+
+pub routine main() -> void {
+  val float big = 1.0e308;
+  val float posinf = big * big;
+  val float neginf = 0.0 - posinf;
+  val float nan = posinf - posinf;
+
+  // case:valid_buy; reason=0
+  stdio.stdout.write(check(1, 1.0, 10.0, 2.0, 0));
+  stdio.stdout.write(":");
+  // case:valid_sell; reason=0
+  stdio.stdout.write(check(-1, 1.0, 10.0, 2.0, 0));
+  stdio.stdout.write(":");
+  // case:valid_at_max; reason=0
+  stdio.stdout.write(check(1, 2.0, 10.0, 2.0, 0));
+  stdio.stdout.write(":");
+  // case:valid_tiny_quantity; reason=0
+  stdio.stdout.write(check(-1, 0.5, 0.5, 1.0, 0));
+  stdio.stdout.write(":");
+  // case:no_side_versus_bad_price; reason=1
+  stdio.stdout.write(check(0, 1.0, 0.0, 2.0, 1));
+  stdio.stdout.write(":");
+  // case:no_side_versus_bad_quantity; reason=1
+  stdio.stdout.write(check(0, -1.0, 10.0, 2.0, 1));
+  stdio.stdout.write(":");
+  // case:no_side_versus_over_max; reason=1
+  stdio.stdout.write(check(0, 3.0, 10.0, 2.0, 1));
+  stdio.stdout.write(":");
+  // case:bad_side_versus_bad_price; reason=5
+  stdio.stdout.write(check(2, 1.0, 0.0, 2.0, 5));
+  stdio.stdout.write(":");
+  // case:bad_side_versus_negative_quantity; reason=5
+  stdio.stdout.write(check(-2, -1.0, 10.0, 2.0, 5));
+  stdio.stdout.write(":");
+  // case:bad_side_versus_over_max; reason=5
+  stdio.stdout.write(check(3, 3.0, 10.0, 2.0, 5));
+  stdio.stdout.write(":");
+  // case:negative_quantity_versus_bad_price; reason=2
+  stdio.stdout.write(check(1, -1.0, 0.0, 2.0, 2));
+  stdio.stdout.write(":");
+  // case:negative_quantity_versus_over_max; reason=2
+  stdio.stdout.write(check(-1, -1.0, 10.0, 0.0, 2));
+  stdio.stdout.write(":");
+  // case:zero_quantity_versus_bad_price; reason=7
+  stdio.stdout.write(check(1, 0.0, 0.0, 2.0, 7));
+  stdio.stdout.write(":");
+  // case:negative_zero_quantity; reason=7
+  stdio.stdout.write(check(-1, -0.0, 10.0, 2.0, 7));
+  stdio.stdout.write(":");
+  // case:bad_price_versus_over_max; reason=6
+  stdio.stdout.write(check(-1, 3.0, 0.0, 2.0, 6));
+  stdio.stdout.write(":");
+  // case:negative_price_versus_over_max; reason=6
+  stdio.stdout.write(check(1, 3.0, -1.0, 2.0, 6));
+  stdio.stdout.write(":");
+  // case:max_zero_over_limit; reason=3
+  stdio.stdout.write(check(1, 0.5, 10.0, 0.0, 3));
+  stdio.stdout.write(":");
+  // case:negative_max_overrides_no_side; reason=4
+  stdio.stdout.write(check(0, 1.0, 10.0, -1.0, 4));
+  stdio.stdout.write(":");
+  // case:negative_max_overrides_bad_side; reason=4
+  stdio.stdout.write(check(2, -1.0, 10.0, -1.0, 4));
+  stdio.stdout.write(":");
+  // case:nan_quantity_overrides_zero_side; reason=4
+  stdio.stdout.write(check(0, nan, 10.0, 2.0, 4));
+  stdio.stdout.write(":");
+  // case:inf_price_overrides_bad_side; reason=4
+  stdio.stdout.write(check(3, 1.0, posinf, 2.0, 4));
+  stdio.stdout.write(":");
+  // case:negative_inf_max_overrides_zero_quantity; reason=4
+  stdio.stdout.write(check(-1, 0.0, 10.0, neginf, 4));
+  stdio.stdout.write(":");
+  // case:nan_max_overrides_zero_side; reason=4
+  stdio.stdout.write(check(0, 1.0, 10.0, nan, 4));
+  stdio.stdout.write(":");
+  // case:nan_price_overrides_negative_quantity; reason=4
+  stdio.stdout.write(check(1, -1.0, nan, 2.0, 4));
+  stdio.stdout.write(":");
+  // case:negative_inf_price_overrides_zero_quantity; reason=4
+  stdio.stdout.write(check(1, 0.0, neginf, 2.0, 4));
+  stdio.stdout.write(":");
+  // case:positive_inf_quantity_overrides_zero_side; reason=4
+  stdio.stdout.write(check(0, posinf, 10.0, 2.0, 4));
+  stdio.stdout.write(":");
+  // case:negative_inf_quantity_overrides_bad_price; reason=4
+  stdio.stdout.write(check(1, neginf, 0.0, 2.0, 4));
+  stdio.stdout.write(":");
+  // case:positive_inf_max_overrides_zero_side; reason=4
+  stdio.stdout.write(check(0, 1.0, 10.0, posinf, 4));
+  stdio.stdout.write(":");
+  // case:positive_price_at_zero_quantity; reason=7
+  stdio.stdout.write(check(1, 0.0, 1.0, 0.0, 7));
+  stdio.stdout.write(":");
+  // case:zero_max_negative_quantity; reason=2
+  stdio.stdout.write(check(1, -1.0, 10.0, 0.0, 2));
+  stdio.stdout.write(":");
+  // case:max_equal_for_sell; reason=0
+  stdio.stdout.write(check(-1, 2.0, 10.0, 2.0, 0));
+  stdio.stdout.write(":");
+  // case:max_equal_for_buy; reason=0
+  stdio.stdout.write(check(1, 2.0, 10.0, 2.0, 0));
+  stdio.stdout.write(":");
+  // case:price_small_positive; reason=0
+  stdio.stdout.write(check(1, 1.0, 0.5, 2.0, 0));
+  stdio.stdout.write(":");
+  // case:quantity_tiny_positive; reason=0
+  stdio.stdout.write(check(1, 0.5, 10.0, 0.5, 0));
+  return;
+}

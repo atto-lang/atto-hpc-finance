@@ -1,0 +1,45 @@
+// Independent Oreslang scalar correctness companion for the Region risk kernel.
+// This is a reference for Oreslang guest parity, NOT a venue admission bypass.
+// The actual execution boundary MUST revalidate the compiled Region decision.
+struct ScalarRiskDecision {
+  approved: bool
+  reason_code: int
+}
+
+define module finance_risk_scalar
+
+  fnc is_finite(float value) -> bool {
+    // Only valid with strict IEEE-754 semantics, without unsafe fast-math.
+    return (value - value) == 0.0;
+  }
+
+  pub fnc limit_order(
+    int side,
+    float quantity,
+    float limit_price,
+    float max_quantity
+  ) -> ScalarRiskDecision {
+    let reason_code = 0;
+    if !is_finite(quantity) || !is_finite(limit_price) ||
+       !is_finite(max_quantity) || max_quantity < 0.0 {
+      reason_code = 4;
+    } elseif side == 0 {
+      reason_code = 1;
+    } elseif side != 1 && side != -1 {
+      reason_code = 5;
+    } elseif quantity < 0.0 {
+      reason_code = 2;
+    } elseif quantity == 0.0 {
+      reason_code = 7;
+    } elseif limit_price <= 0.0 {
+      reason_code = 6;
+    } elseif quantity > max_quantity {
+      reason_code = 3;
+    }
+    return ScalarRiskDecision{
+      approved: reason_code == 0,
+      reason_code: reason_code
+    };
+  }
+
+end

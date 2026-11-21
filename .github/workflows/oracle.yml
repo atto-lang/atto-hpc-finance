@@ -24,6 +24,11 @@ jobs:
         with:
           toolchain: stable
           components: rustfmt, clippy
+      - name: Self-test fail-closed scalar guest verifier (MOCK ONLY)
+        run: |
+          bash -n ../../scripts/run-scalar-guest-exact-head.sh
+          bash -n ../../scripts/test-scalar-guest-gate.sh
+          bash ../../scripts/test-scalar-guest-gate.sh
       - run: cargo fmt --all -- --check
       - run: cargo test --offline --all-targets
       - run: cargo clippy --offline --all-targets -- -D warnings

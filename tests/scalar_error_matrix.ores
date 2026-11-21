@@ -1,0 +1,64 @@
+import module finance_scalar from "../src/scalar.ores";
+
+// Negative cases are expected to return errors, not trap or mutate outputs.
+// Expected stdout: twelve colon-delimited "true" values, without newline.
+// Requires a real pinned Oreslang compiler; not validated by mock scripts.
+pub routine main() -> void {
+  val float large = 1.0e308;
+  val float positive_infinity = large * large;
+  let Array<float> out1 = arr[41.0];
+  let Array<float> out2 = arr[42.0, 43.0];
+  let Array<float> out3 = arr[44.0, 45.0];
+  let Array<float> out4 = arr[46.0];
+  let Array<float> out5 = arr[47.0, 48.0];
+  let Array<float> out6 = arr[49.0];
+  let Array<float> out7 = arr[50.0];
+
+  // check:negative_count
+  stdio.stdout.write(finance_scalar.simple_returns_into(arr[1.0, 2.0], out1, -1).is_err() && out1[0] == 41.0);
+  stdio.stdout.write(":");
+
+  // check:input_length
+  stdio.stdout.write(finance_scalar.simple_returns_into(arr[1.0, 2.0], out2, 3).is_err() && out2[0] == 42.0 && out2[1] == 43.0);
+  stdio.stdout.write(":");
+
+  // check:output_length
+  stdio.stdout.write(finance_scalar.simple_returns_into(arr[1.0, 2.0], out3, 2).is_err() && out3[0] == 44.0 && out3[1] == 45.0);
+  stdio.stdout.write(":");
+
+  // check:zero_denominator
+  stdio.stdout.write(finance_scalar.simple_returns_into(arr[0.0, 2.0], out4, 2).is_err() && out4[0] == 46.0);
+  stdio.stdout.write(":");
+
+  // check:zero_window
+  stdio.stdout.write(finance_scalar.rolling_mean_into(arr[1.0, 2.0], out5, 2, 0).is_err() && out5[0] == 47.0 && out5[1] == 48.0);
+  stdio.stdout.write(":");
+
+  // check:oversize_window
+  stdio.stdout.write(finance_scalar.rolling_mean_into(arr[1.0, 2.0], out6, 2, 3).is_err() && out6[0] == 49.0);
+  stdio.stdout.write(":");
+
+  // check:nonfinite_input
+  stdio.stdout.write(finance_scalar.simple_returns_into(arr[1.0, positive_infinity], out7, 2).is_err() && out7[0] == 50.0);
+  stdio.stdout.write(":");
+
+  // check:insufficient_variance
+  stdio.stdout.write(finance_scalar.sample_variance(arr[1.0], 1).is_err());
+  stdio.stdout.write(":");
+
+  // check:negative_drawdown_price
+  stdio.stdout.write(finance_scalar.max_drawdown(arr[1.0, -1.0], 2).is_err());
+  stdio.stdout.write(":");
+
+  // check:mismatched_mean_count
+  stdio.stdout.write(finance_scalar.mean(arr[1.0, 2.0], 3).is_err());
+  stdio.stdout.write(":");
+
+  // check:equal_sample_variance
+  stdio.stdout.write(finance_scalar.sample_variance(arr[4.0, 4.0], 2).is_ok());
+  stdio.stdout.write(":");
+
+  // check:single_point_mean
+  stdio.stdout.write(finance_scalar.mean(arr[4.0], 1).is_ok() && finance_scalar.mean(arr[4.0], 1).unwrap() == 4.0);
+  return;
+}

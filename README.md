@@ -82,3 +82,17 @@ permissions and no repository secrets; the oracle has no external dependencies.
 This gate validates the Rust reference only. It does not claim Oreslang kernel,
 actor-region transfer, GPU, or cross-language parity coverage. Those remain
 subject to the compiler integration contracts above.
+
+## Unified risk and scalar hardening (draft)
+
+The integration branch retains PR #11's latest failure-atomic scalar and
+fail-closed risk work, PR #12's independent extreme-mean fixture, and PR #14's
+batch-shape validator, Welford bounds, and Rust oracle. The source-local
+exact-head script specifies eleven Oreslang scalar and risk guest fixtures, but none
+is certified until a reviewed compiler actually executes them. The Rust
+model is not an Oreslang Region risk/actor integration test. See
+`docs/unified-reconciliation.md` and `docs/hpc-verification-gates.md`.
+
+The exact-head Oreslang-language guest suite now covers **eleven** programs,
+**182** expected booleans, and a separate **180-case** finite risk cross-product;
+all await actual compiler-backed execution. See `docs/oreslang-guest-parity.md`.

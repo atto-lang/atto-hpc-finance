@@ -69,9 +69,14 @@ place auto;
     let local_mean = 0.0;
     let local_m2 = 0.0;
 
+    // The validated exact chunk geometry guarantees start < count.
+    // Do not form start + offset for masked final-chunk lanes: that
+    // unchecked index can overflow at the signed-int boundary.
+    val start = chunk * chunk_size;
+    val remaining = count - start;
     for int offset = 0; offset < chunk_size; offset++ {
-      val index = chunk * chunk_size + offset;
-      if index < count {
+      if offset < remaining {
+        val index = start + offset;
         local_count = local_count + 1;
         val value = values[index].value;
         val delta = value - local_mean;
@@ -196,7 +201,7 @@ pub compute fnc risk_gate_kernel(
   Region<model.RiskDecisionPoint> decision,
   float max_quantity
 ) -> void
-reads order.side, order.quantity;
+reads order.side, order.quantity, order.limit_price;
 discards decision.approved, decision.reason_code;
 layout order soa;
 layout decision soa;
@@ -207,18 +212,33 @@ place cpu;
 
   val quantity_finite =
     (order[0].quantity - order[0].quantity) == 0.0;
+  val limit_price_finite =
+    (order[0].limit_price - order[0].limit_price) == 0.0;
   val max_quantity_finite =
     (max_quantity - max_quantity) == 0.0;
 
-  if !quantity_finite || !max_quantity_finite || max_quantity < 0.0 {
+  // Fail closed at the final pre-trade boundary even if an earlier control
+  // stage promised validated inputs. A limit order must have a positive
+  // price; market orders need a separate explicit order-kind contract.
+  if !quantity_finite || !limit_price_finite ||
+     !max_quantity_finite || max_quantity < 0.0 {
     approved = false;
     reason_code = 4;
   } elseif order[0].side == 0 {
     approved = false;
     reason_code = 1;
+  } elseif order[0].side != 1 && order[0].side != -1 {
+    approved = false;
+    reason_code = 5;
   } elseif order[0].quantity < 0.0 {
     approved = false;
     reason_code = 2;
+  } elseif order[0].quantity == 0.0 {
+    approved = false;
+    reason_code = 7;
+  } elseif order[0].limit_price <= 0.0 {
+    approved = false;
+    reason_code = 6;
   } elseif order[0].quantity > max_quantity {
     approved = false;
     reason_code = 3;

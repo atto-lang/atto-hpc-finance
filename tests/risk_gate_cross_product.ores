@@ -1,0 +1,71 @@
+import module finance_risk_scalar from "../src/risk_scalar.ores";
+
+// True Oreslang guest property matrix: 5 sides x 4 quantities x 3 prices
+// x 3 risk ceilings = 180 decisions. No Rust/Java/JS substitute is counted.
+// Expected stdout: twelve colon-delimited true values (no newline).
+// Distribution: reasons 0..7 = [2, 24, 12, 6, 60, 48, 16, 12].
+pub routine main() -> void {
+  val Array<int> sides = arr[-2, -1, 0, 1, 2];
+  val Array<float> quantities = arr[-1.0, 0.0, 1.0, 3.0];
+  val Array<float> prices = arr[-1.0, 0.0, 10.0];
+  val Array<float> ceilings = arr[-1.0, 0.0, 2.0];
+  let total = 0;
+  let approvals = 0;
+  let bad_approvals = 0;
+  let inconsistent_codes = 0;
+  let Array<int> reason_counts = arr[0, 0, 0, 0, 0, 0, 0, 0];
+  for int i = 0; i < 5; i++ {
+    for int j = 0; j < 4; j++ {
+      for int k = 0; k < 3; k++ {
+        for int m = 0; m < 3; m++ {
+          val side = sides[i];
+          val quantity = quantities[j];
+          val price = prices[k];
+          val ceiling = ceilings[m];
+          val result = finance_risk_scalar.limit_order(side, quantity, price, ceiling);
+          total = total + 1;
+          if result.reason_code >= 0 && result.reason_code <= 7 {
+            reason_counts[result.reason_code] = reason_counts[result.reason_code] + 1;
+          }
+          if result.approved {
+            approvals = approvals + 1;
+            if (side != 1 && side != -1) ||
+               quantity <= 0.0 || price <= 0.0 ||
+               ceiling < 0.0 || quantity > ceiling {
+              bad_approvals = bad_approvals + 1;
+            }
+          }
+          if result.reason_code < 0 || result.reason_code > 7 ||
+             (result.approved && result.reason_code != 0) ||
+             (!result.approved && result.reason_code == 0) {
+            inconsistent_codes = inconsistent_codes + 1;
+          }
+        }
+      }
+    }
+  }
+  stdio.stdout.write(total == 180);
+  stdio.stdout.write(":");
+  stdio.stdout.write(approvals == 2);
+  stdio.stdout.write(":");
+  stdio.stdout.write(bad_approvals == 0);
+  stdio.stdout.write(":");
+  stdio.stdout.write(inconsistent_codes == 0);
+  stdio.stdout.write(":");
+  stdio.stdout.write(reason_counts[0] == 2);
+  stdio.stdout.write(":");
+  stdio.stdout.write(reason_counts[1] == 24);
+  stdio.stdout.write(":");
+  stdio.stdout.write(reason_counts[2] == 12);
+  stdio.stdout.write(":");
+  stdio.stdout.write(reason_counts[3] == 6);
+  stdio.stdout.write(":");
+  stdio.stdout.write(reason_counts[4] == 60);
+  stdio.stdout.write(":");
+  stdio.stdout.write(reason_counts[5] == 48);
+  stdio.stdout.write(":");
+  stdio.stdout.write(reason_counts[6] == 16);
+  stdio.stdout.write(":");
+  stdio.stdout.write(reason_counts[7] == 12);
+  return;
+}
