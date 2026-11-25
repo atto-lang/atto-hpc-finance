@@ -1,4 +1,14 @@
-# oreslang-hpc-finance
+> **AI agent instructions (organization-wide):** Before working on code, issues, or pull requests, read and follow the [organization `AGENTS.md`](https://github.com/atto-lang/.github/blob/main/AGENTS.md), including its **merge-first stealth-development policy**. Honor any repository-local `AGENTS.md`, explicit holds, and GitHub-enforced rules.
+
+# atto-hpc-finance
+
+## AttoLang migration and current contracts (2026-11-18)
+
+**AttoLang (formerly Oreslang)** is the public language name. This repository is maintained at `atto-lang/atto-hpc-finance`, with historical material from `ores-truffle-oreslang/oreslang-hpc-finance`. Existing history, issue/PR records, CI results, commands, and implementation status are not assumed identical across the two repos. The content and example commands below document this checkout, and legacy `.ores`, `oreslang-*` names and ABI/wire interfaces remain compatibility surfaces until proven migrations.
+
+**[atto-spec](https://github.com/atto-lang/atto-spec)** is the canonical normative language specification (not old Oreslang README files); [atto-platform-conformance](https://github.com/atto-lang/atto-platform-conformance) owns portable positive/negative guest tests, and [atto-common-source](https://github.com/atto-lang/atto-common-source) owns portable `.atto` library code. Source design targets include `snake_case`, explicit `borrow!`/`take!`/`share!`/`copy!`/`copy!!`, [implicit argument borrowing](https://github.com/atto-lang/atto-spec/blob/main/language/implicit-argument-borrow-v1.md), [file/module `define const` with permitted one-time nonthrowing `os.read_env`](https://github.com/atto-lang/atto-spec/blob/main/language/file-module-const-v1.md) and [bitwise shifts `<<<`/`>>>`/`ashr` versus `<<`/`>>` stream operations](https://github.com/atto-lang/atto-spec/blob/main/language/bitwise-and-stream-operators-v1.md). These are intended semantics, not evidence this old project executes them.
+
+No Python scripts, generators or test/CI harnesses for new AttoLang work; prefer Rust tools when necessary. Compiler/runtime parity requires exact commits/tree, toolchain, actual positive and negative compiled guest tests, and explicit unsupported/failed/not-executed results. Host-only tests or zero-step Actions cannot certify language support.
 
 High-performance finance, trading, quantitative research, and HPC routines for Oreslang.
 
@@ -73,13 +83,10 @@ This gate validates the Rust reference only. It does not claim Oreslang kernel,
 actor-region transfer, GPU, or cross-language parity coverage. Those remain
 subject to the compiler integration contracts above.
 
-## Repository ownership and migration (2026-11-08)
+## Legacy migration and verification gates
 
-**Current:** `ores-truffle-oreslang/oreslang-hpc-finance` in the old Oreslang org. **Public language:** AttoLang. Retain existing `.ores` files and historical repository/package/CLI aliases until compiler-backed `.atto` support and consumers have been validated.
+The historical predecessor was `ores-truffle-oreslang/oreslang-hpc-finance`. This repository is now maintained in `atto-lang`; naming or imported history does not establish preservation of the original numeric repository ID, code parity or compiler support. Preserve working legacy `.ores` inputs and historical package/CLI aliases until replacement paths have been verified; new source follows canonical `.atto` contracts.
 
-- **This repo owns:** reproducible numerical/HPC finance kernels, overflow and negative-case testing.
-- **Not owned here:** investment services, live trading or unverified performance claims.
-- **Organizations:** [atto-lang](https://github.com/atto-lang) is for language/compiler/tooling, portable ML/scientific libraries, conformance and demonstrations. [atto-co](https://github.com/atto-co) is for independently governed cloud hosting, deployment, tenant identity, billing and commercial services. Similar `atto-*` repo names do not imply transferred source ID or content parity.
-- **Migration proposal:** identity-preserving GitHub transfer under the original repository name to `atto-lang/oreslang-hpc-finance` after reviews. No legacy-org direct move to `atto-co` is currently authorized. Later commercialization spinouts need their own signed off runbook.
+Reproducible numerical and HPC finance kernels, overflow and negative tests belong here; investment services, live trading operations and unsupported performance claims do not. [atto-lang](https://github.com/atto-lang) owns language, tooling and portable libraries; [atto-co](https://github.com/atto-co) separately governs commercial deployment, tenant infrastructure, identity, registry and billing. Any further original-ID transfer or managed-product carve-out requires separate owner authorization. This document authorizes no direct legacy-org transfer to atto-co.
 
-**Repository transfer gates:** coordinate a single owner/rollback plan at [issue #26](https://github.com/ores-truffle-oreslang/.github/issues/26); consult private [runbook #25](https://github.com/ores-truffle-oreslang/.github/pull/25). Record exact source commit SHA/tree and numeric ID, target visibility and protection/rulesets, source/target admin and independent security approvals, PRs/tags/releases, packages/import consumers, webhooks, GitHub Apps, Actions/billing/runners, secrets and Pages. Never mirror private source without separate approval. After actual GitHub transfer verify identical ID/history/tree, restore protections, update references independently and run exact-head CI with nonzero executed steps. `steps=[]`/`null` is `NOT_EXECUTED`; host/static tests cannot establish compiled AttoLang numerical or guest execution parity.
+Before an actual transfer, coordinate through [migration issue #26](https://github.com/ores-truffle-oreslang/.github/issues/26) and authorized source/target administrators and independent security reviewers. Inventory repository numeric ID, exact head/tree, history, visibility, access, rulesets, open PRs, releases, packages, CI/runners, secrets, deploy keys, apps, webhooks, Pages, consumers and rollback ownership. Never mirror private source without authorization. Verify unchanged ID/history/tree and restored controls after transfer, then execute exact-head tests before changing consumer references. Zero-step CI is NOT_EXECUTED; host-only and source-free tests are not compiled guest evidence.
