@@ -1,10 +1,10 @@
-> **AI agent instructions (organization-wide):** Before working on code, issues, or pull requests, read and follow the [organization `AGENTS.md`](https://github.com/ores-truffle-oreslang/.github/blob/main/AGENTS.md), including its **merge-first stealth-development policy**. Honor any repository-local `AGENTS.md`, explicit holds, and GitHub-enforced rules.
+> **AI agent instructions (organization-wide):** Before working on code, issues, or pull requests, read and follow the [organization `AGENTS.md`](https://github.com/atto-lang/.github/blob/main/AGENTS.md), including its **merge-first stealth-development policy**. Honor any repository-local `AGENTS.md`, explicit holds, and GitHub-enforced rules.
 
-# oreslang-hpc-finance
+# atto-hpc-finance
 
 ## AttoLang migration and current contracts (2026-11-18)
 
-**AttoLang (formerly Oreslang)** is the public language name. This `ores-truffle-oreslang/oreslang-hpc-finance` repository is the legacy named checkout; new corresponding work is routed to **no verified exact successor**. Existing history, issue/PR records, CI results, commands, and implementation status are not assumed identical across the two repos. The content and example commands below document this checkout, and legacy `.ores`, `oreslang-*` names and ABI/wire interfaces remain compatibility surfaces until proven migrations.
+**AttoLang (formerly Oreslang)** is the public language name. This repository is maintained at `atto-lang/atto-hpc-finance`, with historical material from `ores-truffle-oreslang/oreslang-hpc-finance`. Existing history, issue/PR records, CI results, commands, and implementation status are not assumed identical across the two repos. The content and example commands below document this checkout, and legacy `.ores`, `oreslang-*` names and ABI/wire interfaces remain compatibility surfaces until proven migrations.
 
 **[atto-spec](https://github.com/atto-lang/atto-spec)** is the canonical normative language specification (not old Oreslang README files); [atto-platform-conformance](https://github.com/atto-lang/atto-platform-conformance) owns portable positive/negative guest tests, and [atto-common-source](https://github.com/atto-lang/atto-common-source) owns portable `.atto` library code. Source design targets include `snake_case`, explicit `borrow!`/`take!`/`share!`/`copy!`/`copy!!`, [implicit argument borrowing](https://github.com/atto-lang/atto-spec/blob/main/language/implicit-argument-borrow-v1.md), [file/module `define const` with permitted one-time nonthrowing `os.read_env`](https://github.com/atto-lang/atto-spec/blob/main/language/file-module-const-v1.md) and [bitwise shifts `<<<`/`>>>`/`ashr` versus `<<`/`>>` stream operations](https://github.com/atto-lang/atto-spec/blob/main/language/bitwise-and-stream-operators-v1.md). These are intended semantics, not evidence this old project executes them.
 
@@ -82,3 +82,11 @@ permissions and no repository secrets; the oracle has no external dependencies.
 This gate validates the Rust reference only. It does not claim Oreslang kernel,
 actor-region transfer, GPU, or cross-language parity coverage. Those remain
 subject to the compiler integration contracts above.
+
+## Legacy migration and verification gates
+
+The historical predecessor was `ores-truffle-oreslang/oreslang-hpc-finance`. This repository is now maintained in `atto-lang`; naming or imported history does not establish preservation of the original numeric repository ID, code parity or compiler support. Preserve working legacy `.ores` inputs and historical package/CLI aliases until replacement paths have been verified; new source follows canonical `.atto` contracts.
+
+Reproducible numerical and HPC finance kernels, overflow and negative tests belong here; investment services, live trading operations and unsupported performance claims do not. [atto-lang](https://github.com/atto-lang) owns language, tooling and portable libraries; [atto-co](https://github.com/atto-co) separately governs commercial deployment, tenant infrastructure, identity, registry and billing. Any further original-ID transfer or managed-product carve-out requires separate owner authorization. This document authorizes no direct legacy-org transfer to atto-co.
+
+Before an actual transfer, coordinate through [migration issue #26](https://github.com/ores-truffle-oreslang/.github/issues/26) and authorized source/target administrators and independent security reviewers. Inventory repository numeric ID, exact head/tree, history, visibility, access, rulesets, open PRs, releases, packages, CI/runners, secrets, deploy keys, apps, webhooks, Pages, consumers and rollback ownership. Never mirror private source without authorization. Verify unchanged ID/history/tree and restored controls after transfer, then execute exact-head tests before changing consumer references. Zero-step CI is NOT_EXECUTED; host-only and source-free tests are not compiled guest evidence.
