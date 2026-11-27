@@ -78,8 +78,17 @@ define module finance_scalar
       }
     }
 
-    // Validation completes before the first output write: callers never
-    // observe a partially-written output on a validation error.
+    // Preflight computed results too: finite inputs may still produce an
+    // infinite quotient. Check every output before the first mutation.
+    for int i = 1; i < count; i++ {
+      val computed = prices[i] / prices[i - 1] - 1.0;
+      if !is_finite_value(computed) {
+        return Err(kernel_error("non_finite_result", i - 1, 0, 0));
+      }
+    }
+
+    // Strict scalar math uses the same evaluation order as the preflight.
+    // Future accelerated paths must prove identical failure-atomicity.
     for int i = 1; i < count; i++ {
       out[i - 1] = prices[i] / prices[i - 1] - 1.0;
     }
@@ -118,14 +127,37 @@ define module finance_scalar
       }
     }
 
+    // Sliding sums of finite inputs can overflow. Preflight the *entire*
+    // output vector before writing anything to the caller-owned buffer.
     let sum = 0.0;
+    for int i = 0; i < window; i++ {
+      sum = sum + values[i];
+      if !is_finite_value(sum) {
+        return Err(kernel_error("non_finite_result", 0, 0, 0));
+      }
+    }
+    if !is_finite_value(sum / window) {
+      return Err(kernel_error("non_finite_result", 0, 0, 0));
+    }
+    for int end = window; end < count; end++ {
+      sum = sum + values[end];
+      if !is_finite_value(sum) {
+        return Err(kernel_error("non_finite_result", end - window + 1, 0, 0));
+      }
+      sum = sum - values[end - window];
+      if !is_finite_value(sum) || !is_finite_value(sum / window) {
+        return Err(kernel_error("non_finite_result", end - window + 1, 0, 0));
+      }
+    }
+
+    sum = 0.0;
     for int i = 0; i < window; i++ {
       sum = sum + values[i];
     }
     out[0] = sum / window;
-
     for int end = window; end < count; end++ {
-      sum = sum + values[end] - values[end - window];
+      sum = sum + values[end];
+      sum = sum - values[end - window];
       out[end - window + 1] = sum / window;
     }
 
@@ -155,7 +187,15 @@ define module finance_scalar
     let result = 0.0;
     for int i = 0; i < count; i++ {
       val n = i + 1;
-      result = result + (values[i] - result) / n;
+      val value = values[i];
+      // The subtraction value - result can overflow for opposite-sign
+      // finite extremes even when their weighted mean is representable.
+      // Match the independently maintained Rust reference's update rule.
+      if (value < 0.0 && result > 0.0) || (value > 0.0 && result < 0.0) {
+        result = result * ((n - 1.0) / n) + value / n;
+      } else {
+        result = result + (value - result) / n;
+      }
     }
     return Ok(result);
   }
@@ -193,9 +233,16 @@ define module finance_scalar
       running_mean = running_mean + delta / running_count;
       val delta2 = values[i] - running_mean;
       m2 = m2 + delta * delta2;
+      if !is_finite_value(running_mean) || !is_finite_value(m2) {
+        return Err(kernel_error("non_finite_result", 0, 0, 0));
+      }
     }
 
-    return Ok(m2 / (running_count - 1));
+    val variance = m2 / (running_count - 1);
+    if !is_finite_value(variance) {
+      return Err(kernel_error("non_finite_result", 0, 0, 0));
+    }
+    return Ok(variance);
   }
 
   pub fnc max_drawdown(

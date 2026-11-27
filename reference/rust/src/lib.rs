@@ -21,6 +21,10 @@ pub enum KernelError {
     NonFinite {
         index: usize,
     },
+    /// A finite input produced an invalid non-finite output.
+    NonFiniteResult {
+        index: usize,
+    },
     NonPositivePrice {
         index: usize,
     },
@@ -112,11 +116,19 @@ pub fn simple_returns_into(prices: &[f64], out: &mut [f64]) -> Result<(), Kernel
     expect_output(out.len(), expected)?;
     require_finite(prices)?;
 
-    // Validate every denominator before the first write so an error never
-    // exposes a partially-updated caller buffer.
+    // Validate all denominators before testing results or writing output.
     for i in 1..prices.len() {
         if prices[i - 1] == 0.0 {
             return Err(KernelError::ZeroPreviousPrice { index: i - 1 });
+        }
+    }
+
+    // Finite operands can divide into infinity. No caller buffer is changed
+    // until all output values have passed the numeric domain check.
+    for i in 1..prices.len() {
+        let result = prices[i] / prices[i - 1] - 1.0;
+        if !result.is_finite() {
+            return Err(KernelError::NonFiniteResult { index: i - 1 });
         }
     }
 
@@ -166,9 +178,38 @@ pub fn rolling_mean_into(
     expect_output(out.len(), values.len() - window + 1)?;
     require_finite(values)?;
 
-    let mut sum = values[..window].iter().sum::<f64>();
-    out[0] = sum / window as f64;
+    // Preflight every sliding sum. An overflowing middle/final window must
+    // not leave early output rows written to caller-owned storage.
+    let mut sum: f64 = 0.0;
+    for &value in &values[..window] {
+        sum += value;
+        if !sum.is_finite() {
+            return Err(KernelError::NonFiniteResult { index: 0 });
+        }
+    }
+    if !(sum / window as f64).is_finite() {
+        return Err(KernelError::NonFiniteResult { index: 0 });
+    }
+    for end in window..values.len() {
+        sum += values[end];
+        if !sum.is_finite() {
+            return Err(KernelError::NonFiniteResult {
+                index: end - window + 1,
+            });
+        }
+        sum -= values[end - window];
+        if !sum.is_finite() || !(sum / window as f64).is_finite() {
+            return Err(KernelError::NonFiniteResult {
+                index: end - window + 1,
+            });
+        }
+    }
 
+    sum = 0.0;
+    for &value in &values[..window] {
+        sum += value;
+    }
+    out[0] = sum / window as f64;
     for end in window..values.len() {
         sum += values[end];
         sum -= values[end - window];
@@ -221,9 +262,16 @@ pub fn sample_variance(values: &[f64]) -> Result<f64, KernelError> {
         mean += delta / count as f64;
         let delta2 = x - mean;
         m2 += delta * delta2;
+        if !mean.is_finite() || !m2.is_finite() {
+            return Err(KernelError::NonFiniteResult { index: 0 });
+        }
     }
 
-    Ok(m2 / (count - 1) as f64)
+    let variance = m2 / (count - 1) as f64;
+    if !variance.is_finite() {
+        return Err(KernelError::NonFiniteResult { index: 0 });
+    }
+    Ok(variance)
 }
 
 /// Annualized arithmetic Sharpe ratio.
@@ -267,6 +315,54 @@ pub fn sharpe_ratio(
     Ok(Some(
         mean_excess / variance.sqrt() * periods_per_year.sqrt(),
     ))
+}
+
+/// Fail-closed reference for the Oreslang pre-trade limit-order gate.
+///
+/// This checks the *final* boundary; callers' earlier validation does not
+/// authorize skipping these checks. A market order needs a distinct order kind
+/// and must not be encoded as a zero-price limit order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RiskDecision {
+    pub approved: bool,
+    pub reason_code: u8,
+}
+
+/// Codes: 0 approved; 1 no side; 2 negative quantity; 3 over limit;
+/// 4 invalid numeric input; 5 invalid side; 6 invalid limit price;
+/// 7 zero quantity. Order side is exactly -1 (sell) or 1 (buy).
+pub fn pretrade_risk_gate(
+    side: i64,
+    quantity: f64,
+    limit_price: f64,
+    max_quantity: f64,
+) -> RiskDecision {
+    let reason_code = if !quantity.is_finite()
+        || !limit_price.is_finite()
+        || !max_quantity.is_finite()
+        || max_quantity < 0.0
+    {
+        4
+    } else if side == 0 {
+        1
+    } else if side != 1 && side != -1 {
+        5
+    } else if quantity < 0.0 {
+        2
+    } else if quantity == 0.0 {
+        7
+    } else if limit_price <= 0.0 {
+        6
+    } else if quantity > max_quantity {
+        3
+    } else {
+        0
+    };
+
+    RiskDecision {
+        approved: reason_code == 0,
+        reason_code,
+    }
 }
 
 /// Maximum drawdown over non-negative finite prices.
@@ -324,6 +420,115 @@ mod tests {
 
     fn approx_eq(a: f64, b: f64, eps: f64) {
         assert!((a - b).abs() <= eps, "{a} != {b}");
+    }
+
+    #[test]
+    fn risk_gate_shared_guest_inventory_has_exact_reference_results() {
+        fn field(text: &str) -> f64 {
+            match text {
+                "NaN" => f64::NAN,
+                "+Infinity" => f64::INFINITY,
+                "-Infinity" => f64::NEG_INFINITY,
+                _ => text.parse::<f64>().expect("finite float fixture"),
+            }
+        }
+        let mut seen = std::collections::BTreeSet::new();
+        let mut count = 0;
+        for (index, row) in include_str!("../../../fixtures/risk-gate-v1.tsv")
+            .lines()
+            .enumerate()
+        {
+            if row.trim().is_empty() || row.starts_with('#') {
+                continue;
+            }
+            let parts: Vec<_> = row.split('|').collect();
+            assert_eq!(parts.len(), 7, "malformed fixture on line {}", index + 1);
+            assert!(!parts[0].is_empty(), "missing fixture ID");
+            assert!(seen.insert(parts[0]), "duplicate fixture ID: {}", parts[0]);
+            let side = parts[1].parse::<i64>().expect("fixture side");
+            let quantity = field(parts[2]);
+            let limit_price = field(parts[3]);
+            let max_quantity = field(parts[4]);
+            let approved = parts[5].parse::<bool>().expect("fixture approved");
+            let reason = parts[6].parse::<u8>().expect("fixture reason code");
+            let actual = pretrade_risk_gate(side, quantity, limit_price, max_quantity);
+            assert_eq!(actual.approved, approved, "fixture {}", parts[0]);
+            assert_eq!(actual.reason_code, reason, "fixture {}", parts[0]);
+            assert_eq!(approved, reason == 0, "inconsistent fixture {}", parts[0]);
+            count += 1;
+        }
+        assert_eq!(count, 23, "unreviewed risk-gate inventory change");
+    }
+
+    #[test]
+    fn risk_gate_rejects_malformed_or_unauthorized_limit_orders() {
+        let cases = [
+            (1, 1.0, 10.0, 2.0, 0),
+            (-1, 1.0, 10.0, 2.0, 0),
+            (0, 1.0, 10.0, 2.0, 1),
+            (2, 1.0, 10.0, 2.0, 5),
+            (-2, 1.0, 10.0, 2.0, 5),
+            (1, -1.0, 10.0, 2.0, 2),
+            (1, 0.0, 10.0, 2.0, 7),
+            (1, -0.0, 10.0, 2.0, 7),
+            (1, 1.0, 0.0, 2.0, 6),
+            (1, 1.0, -1.0, 2.0, 6),
+            (1, 3.0, 10.0, 2.0, 3),
+            (1, 1.0, 10.0, 0.0, 3),
+            (1, 1.0, 10.0, -1.0, 4),
+            (1, 2.0, 10.0, 2.0, 0),
+        ];
+        for (side, quantity, limit_price, max_quantity, reason_code) in cases {
+            let decision = pretrade_risk_gate(side, quantity, limit_price, max_quantity);
+            assert_eq!(decision.reason_code, reason_code);
+            assert_eq!(decision.approved, reason_code == 0);
+        }
+    }
+
+    #[test]
+    fn risk_gate_rejects_all_non_finite_inputs() {
+        for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+            for decision in [
+                pretrade_risk_gate(1, bad, 10.0, 2.0),
+                pretrade_risk_gate(1, 1.0, bad, 2.0),
+                pretrade_risk_gate(1, 1.0, 10.0, bad),
+            ] {
+                assert_eq!(decision.reason_code, 4);
+                assert!(!decision.approved);
+            }
+        }
+    }
+
+    #[test]
+    fn returns_overflow_rejects_before_mutating_any_output() {
+        let prices = [1.0, 2.0, 1e-300, 1e300];
+        let mut out = [17.0, 18.0, 19.0];
+        assert_eq!(
+            simple_returns_into(&prices, &mut out),
+            Err(KernelError::NonFiniteResult { index: 2 })
+        );
+        assert_eq!(out, [17.0, 18.0, 19.0]);
+    }
+
+    #[test]
+    fn rolling_mean_late_overflow_rejects_before_any_write() {
+        let values = [1.0, 1.0, f64::MAX, f64::MAX];
+        let mut out = [11.0, 12.0, 13.0];
+        assert_eq!(
+            rolling_mean_into(&values, 2, &mut out),
+            Err(KernelError::NonFiniteResult { index: 2 })
+        );
+        assert_eq!(out, [11.0, 12.0, 13.0]);
+    }
+
+    #[test]
+    fn rolling_mean_initial_overflow_rejects_before_any_write() {
+        let mut out = [31.0];
+        assert_eq!(
+            rolling_mean_into(&[f64::MAX, f64::MAX], 2, &mut out),
+            Err(KernelError::NonFiniteResult { index: 0 })
+        );
+        assert_eq!(out, [31.0]);
     }
 
     #[test]
@@ -388,6 +593,19 @@ mod tests {
         assert_eq!(mean(&[f64::MAX, f64::MAX]), Ok(f64::MAX));
         assert_eq!(mean(&[-f64::MAX, -f64::MAX]), Ok(-f64::MAX));
         approx_eq(mean(&[1.0, 2.0, 3.0]).unwrap(), 2.0, 1e-12);
+    }
+
+    #[test]
+    fn sample_variance_rejects_nonfinite_computed_moments() {
+        // Finite extreme endpoints can overflow the Welford delta/M2.
+        assert_eq!(
+            sample_variance(&[f64::MAX, -f64::MAX]),
+            Err(KernelError::NonFiniteResult { index: 0 })
+        );
+        assert_eq!(
+            sample_variance(&[f64::MAX, f64::MAX]),
+            Ok(0.0)
+        );
     }
 
     #[test]
