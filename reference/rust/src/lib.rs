@@ -3,6 +3,8 @@
 //! The public Oreslang library should match these semantics, but it does not
 //! need to mirror this Rust API.
 
+pub mod batch_shape;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum KernelError {
     OutputLength {
@@ -317,6 +319,35 @@ pub fn sharpe_ratio(
     ))
 }
 
+/// Pure reference for the compute signal stage. A non-finite score,
+/// including overflow from *finite* inputs, must not become an order side.
+/// `side == 0` is a no-order/rejected signal, not an approved order.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SignalDecision {
+    pub score: f64,
+    pub side: i64,
+}
+
+pub fn latest_signal(return_value: f64, rolling_mean_value: f64) -> SignalDecision {
+    let score = return_value - rolling_mean_value;
+    if !score.is_finite() {
+        return SignalDecision {
+            score: 0.0,
+            side: 0,
+        };
+    }
+    SignalDecision {
+        score,
+        side: if score > 0.0 {
+            1
+        } else if score < 0.0 {
+            -1
+        } else {
+            0
+        },
+    }
+}
+
 /// Fail-closed reference for the Oreslang pre-trade limit-order gate.
 ///
 /// This checks the *final* boundary; callers' earlier validation does not
@@ -458,6 +489,36 @@ mod tests {
             count += 1;
         }
         assert_eq!(count, 23, "unreviewed risk-gate inventory change");
+    }
+
+    #[test]
+    fn latest_signal_never_promotes_nonfinite_score_to_order() {
+        assert_eq!(
+            latest_signal(0.25, 0.10),
+            SignalDecision { score: 0.15, side: 1 }
+        );
+        assert_eq!(latest_signal(-1.0, 0.0).side, -1);
+        assert_eq!(latest_signal(0.0, 0.0).side, 0);
+        assert_eq!(
+            latest_signal(1e308, -1e308),
+            SignalDecision { score: 0.0, side: 0 }
+        );
+        assert_eq!(
+            latest_signal(f64::NAN, 0.0),
+            SignalDecision { score: 0.0, side: 0 }
+        );
+        assert_eq!(
+            latest_signal(f64::INFINITY, -1.0),
+            SignalDecision { score: 0.0, side: 0 }
+        );
+        assert_eq!(
+            latest_signal(1.0, f64::NEG_INFINITY),
+            SignalDecision { score: 0.0, side: 0 }
+        );
+        // A rejected signal must remain rejected by the final limit gate.
+        let denied = pretrade_risk_gate(latest_signal(1e308, -1e308).side, 1.0, 10.0, 2.0);
+        assert!(!denied.approved);
+        assert_eq!(denied.reason_code, 1);
     }
 
     #[test]

@@ -127,11 +127,51 @@ checked. An unapproved decision must never be passed to venue I/O.
   numeric, no side, invalid side, negative quantity, zero quantity,
   invalid limit price, exceeding max quantity.
 
-The shared acceptance inventory is `fixtures/risk-gate-v1.tsv` (23 reviewed\npositive/negative vectors, with explicit `NaN` and infinity symbols). The\nRust oracle checks the inventory without third-party dependencies. A guest\nadapter must parse these symbols explicitly and compare every decision and\nreason code; a source-only inventory check is not runtime proof.\n\nThe Rust `pretrade_risk_gate` reference has adversarial unit tests for
+The shared acceptance inventory is `fixtures/risk-gate-v1.tsv` (23 reviewed
+positive/negative vectors, with explicit `NaN` and infinity symbols). The
+Rust oracle checks the inventory without third-party dependencies. A guest
+adapter must parse these symbols explicitly and compare every decision and
+reason code; a source-only inventory check is not runtime proof.
+
+The Rust `pretrade_risk_gate` reference has adversarial unit tests for
 this policy. **Rust-only tests do not establish that the Oreslang compute
 kernel ran**, nor do they validate exchange integration. A future exact-head
 guest test must compare the Oreslang decision/reason codes against these
 vectors and assert that rejected orders never reach a venue capability.
+
+## Signal overflow and execution isolation
+
+A subtraction of individually finite inputs can yield an infinite signal:
+`1e308 - (-1e308)` is positive infinity in strict IEEE-754 binary64.
+Without a final signal check, this is incorrectly interpreted as a buy order.
+
+The `latest_signal_kernel` must set **both** `SignalPoint.side=0` and
+`SignalPoint.score=0.0` when the calculated score is nonfinite. This clears
+a stale prior side in a reused output slot. The final risk gate rejects
+`side=0` with `reason_code=1` regardless of upstream claims.
+
+The design-only `RiskActor` must not forward denied batches; the
+design-only `ExecutionActor` must independently reject them before any
+future venue I/O. These actors currently live under `design/` and **are
+not executable**. An approved decision is not itself a venue capability:
+tenant identity, order generation, capability ownership, and authorization
+must be checked again at the actual adapter.
+
+**Compiler math mode is a security precondition.** Source patterns such as
+`(score - score) == 0.0` are only reliable for NaN/infinity checks when
+the backend actually preserves IEEE-754 special-value semantics. A local
+Clang 17 host probe at `-O2 -fno-fast-math` correctly refused an
+overflowed signal, while `-O2 -ffast-math` treated its finite check as
+true and produced `side=1`. This is a host compiler demonstration,
+**not evidence about Oreslang's generated code**. Reject/disable relaxed
+math for financial authorization until each claimed backend provides
+executed native guest negative receipts for NaN, infinity, and finite-input
+subtraction overflow.
+
+The Rust `latest_signal` oracle covers these numerical cases and checks
+that the final `pretrade_risk_gate` rejects its no-order side. Neither
+Rust source nor source-only Oreslang patches establish that the compute
+kernel or actor pipeline actually executed.
 
 ## Randomness
 

@@ -1,0 +1,52 @@
+import module finance_scalar from "../src/scalar.ores";
+
+// Dedicated numerical parity regression. Do not count as executed until
+// a pinned Oreslang compiler has compiled and run this exact source.
+// Expected stdout: true:true:true:true:true
+pub routine main() -> void {
+  val positive_then_negative = finance_scalar.mean(
+    arr[1.0e308, -1.0e308],
+    2
+  );
+  val negative_then_positive = finance_scalar.mean(
+    arr[-1.0e308, 1.0e308],
+    2
+  );
+  val equal_positive = finance_scalar.mean(
+    arr[1.0e308, 1.0e308],
+    2
+  );
+  val equal_negative = finance_scalar.mean(
+    arr[-1.0e308, -1.0e308],
+    2
+  );
+  val ordinary = finance_scalar.mean(
+    arr[1.0, 2.0, 3.0],
+    3
+  );
+
+  stdio.stdout.write(
+    positive_then_negative.is_ok() &&
+    positive_then_negative.unwrap() == 0.0
+  );
+  stdio.stdout.write(":");
+  stdio.stdout.write(
+    negative_then_positive.is_ok() &&
+    negative_then_positive.unwrap() == 0.0
+  );
+  stdio.stdout.write(":");
+  stdio.stdout.write(
+    equal_positive.is_ok() &&
+    equal_positive.unwrap() == 1.0e308
+  );
+  stdio.stdout.write(":");
+  stdio.stdout.write(
+    equal_negative.is_ok() &&
+    equal_negative.unwrap() == -1.0e308
+  );
+  stdio.stdout.write(":");
+  stdio.stdout.write(
+    ordinary.is_ok() && ordinary.unwrap() == 2.0
+  );
+  return;
+}

@@ -69,16 +69,21 @@ place auto;
     let local_mean = 0.0;
     let local_m2 = 0.0;
 
-    for int offset = 0; offset < chunk_size; offset++ {
-      val index = chunk * chunk_size + offset;
-      if index < count {
-        local_count = local_count + 1;
-        val value = values[index].value;
-        val delta = value - local_mean;
-        local_mean = local_mean + delta / local_count;
-        val delta2 = value - local_mean;
-        local_m2 = local_m2 + delta * delta2;
-      }
+    // Exact validated geometry guarantees start < count. A padded final
+    // chunk must not execute virtual lanes: chunk_size can exceed count by
+    // orders of magnitude. Bound the loop to actual available values.
+    // Never form start + offset outside the admitted lane count.
+    val start = chunk * chunk_size;
+    val remaining = count - start;
+    val lane_count = remaining < chunk_size ? remaining : chunk_size;
+    for int offset = 0; offset < lane_count; offset++ {
+      val index = start + offset;
+      local_count = local_count + 1;
+      val value = values[index].value;
+      val delta = value - local_mean;
+      local_mean = local_mean + delta / local_count;
+      val delta2 = value - local_mean;
+      local_m2 = local_m2 + delta * delta2;
     }
 
     chunks[chunk].count = local_count;
@@ -156,6 +161,17 @@ place auto;
 {
   val score = returns[return_count - 1].value
     - rolling[rolling_count - 1].value;
+
+  // Finite inputs can overflow when subtracted. A nonfinite signal must
+  // never be promoted to a buy/sell order. Invalidate the one-slot
+  // output explicitly, so a prior valid side cannot leak across batches.
+  // Backend math modes must preserve IEEE finite checks; fast-math is
+  // not certified until compiler-backed negative guest receipts exist.
+  if (score - score) != 0.0 {
+    signal[0].score = 0.0;
+    signal[0].side = 0;
+    return;
+  }
 
   let side = 0;
   if score > 0.0 {
