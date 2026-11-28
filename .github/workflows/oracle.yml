@@ -38,6 +38,10 @@ jobs:
           bash -n ../../scripts/run-scalar-guest-exact-head.sh
           bash -n ../../scripts/test-scalar-guest-gate.sh
           bash ../../scripts/test-scalar-guest-gate.sh
+      - name: Strict vs fast-math HOST probe (NOT Oreslang)
+        run: |
+          bash -n ../../reference/host/run_strict_math_probe.sh
+          bash ../../reference/host/run_strict_math_probe.sh
       - run: cargo fmt --all -- --check
       - run: cargo test --offline --all-targets
       - run: cargo clippy --offline --all-targets -- -D warnings
