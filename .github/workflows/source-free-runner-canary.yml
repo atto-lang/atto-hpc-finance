@@ -1,0 +1,24 @@
+name: Source-free runner admission canary
+on:
+  push:
+    branches: ["hardening/**"]
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: hpc-source-free-admission-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  admission:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify GitHub-hosted runner admission without checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "SOURCE_FREE_RUNNER_ADMITTED=1"
+          echo "RUN_ID=${GITHUB_RUN_ID}"
+          echo "ATTEMPT=${GITHUB_RUN_ATTEMPT}"
+          echo "HEAD=${GITHUB_SHA}"
+          test -n "${GITHUB_RUN_ID}"
+          test -n "${GITHUB_SHA}"
